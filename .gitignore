@@ -49,12 +49,3 @@ dist/
 build/
 *.egg-info/
 
-# ── Old Docs (archived) ──────────────────────────────────────
-CrisisSignal_AI_Rapid_Crisis_Response_Documentatio.md
-DOCUMENTATION old.md
-DOCUMENTATION.md
-GDSC_Doc.md
-REDEVELOPMENT_PLAN.md
-testingDocu.md
-implementation_roadmap.md
-debug_db.py

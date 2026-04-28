@@ -67,13 +67,14 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
-# Production entrypoint: Gunicorn with gevent worker for Flask-SocketIO
-# --worker-class=gevent required for WebSocket support
-CMD ["gunicorn", \
-     "--worker-class", "geventwebsocket.handler.WebSocketHandler", \
-     "--workers", "1", \
-     "--bind", "0.0.0.0:8000", \
-     "--timeout", "120", \
-     "--access-logfile", "-", \
-     "--error-logfile", "-", \
-     "run:app"]
+# Production entrypoint: Gunicorn with threading mode (Render free tier compatible)
+# Note: Flask-SocketIO falls back to long-polling on free tier (no sticky sessions)
+CMD gunicorn \
+    --worker-class=sync \
+    --workers=1 \
+    --threads=4 \
+    --bind=0.0.0.0:${PORT:-8000} \
+    --timeout=120 \
+    --access-logfile=- \
+    --error-logfile=- \
+    run:app
