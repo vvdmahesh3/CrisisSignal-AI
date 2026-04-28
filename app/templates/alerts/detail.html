@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}Alert #{{ alert.id }} — CrisisSignal AI{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+{% endblock %}
+{% block content %}
+<div class="page-header" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(0,0,0,0.2)); padding: 2.5rem; border-radius: var(--radius-xl); border: 1px solid var(--border-glass); position: relative; overflow: hidden; margin-bottom: 2rem; backdrop-filter: blur(20px); box-shadow: var(--shadow-xl); display: flex; align-items: center; gap: 2rem;">
+    <!-- Ambient Glow Background based on severity -->
+    {% set sev = alert.severity or 0 %}
+    {% set glow_color = 'var(--color-critical)' if sev >= 7 else ('var(--color-warning)' if sev >= 4 else 'var(--color-success)') %}
+    <div style="--glow-color: {{ glow_color }}; position: absolute; top: -50%; left: -10%; width: 300px; height: 300px; background: radial-gradient(circle, var(--glow-color) 0%, transparent 70%); opacity: 0.1; filter: blur(50px); border-radius: 50%; pointer-events: none;"></div>
+    
+    <a href="javascript:history.back()" class="btn btn-ghost detail-back-btn" style="border-radius: 50%; padding: 12px; border: 1px solid var(--border-glass); background: var(--bg-glass); flex-shrink: 0;">
+        <i data-lucide="arrow-left" style="margin: 0; width: 24px; height: 24px;"></i>
+    </a>
+    <div class="page-title-group" style="position: relative; z-index: 1;">
+        <div style="display: inline-flex; align-items: center; gap: 8px; margin-bottom: 0.5rem;">
+            <span style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-secondary);">Incident Report Record</span>
+        </div>
+        <h1 class="page-title" style="font-size: 2.5rem; font-weight: 800; letter-spacing: -0.04em; margin: 0;">
+            Alert <span style="color: var(--text-muted);">#{{ alert.id }}</span>
+        </h1>
+    </div>
+</div>
+
+<div class="detail-layout">
+    <!-- Main Info -->
+    <div class="detail-main">
+        <div class="detail-card animate-fade-in-up" style="background: var(--bg-glass-premium); border: 1px solid var(--border-glass); border-radius: var(--radius-xl); padding: 2.5rem; backdrop-filter: blur(24px) saturate(150%); -webkit-backdrop-filter: blur(24px) saturate(150%); box-shadow: var(--shadow-xl); position: relative; overflow: hidden;">
+            <!-- Subtle internal glow based on status -->
+            <div style="position: absolute; top: 0; right: 0; width: 200px; height: 200px; background: radial-gradient(circle, var(--accent) 0%, transparent 70%); opacity: 0.05; filter: blur(40px); border-radius: 50%; pointer-events: none;"></div>
+
+            <div class="detail-header" style="border-bottom: 1px solid var(--border-glass); padding-bottom: 1.5rem; margin-bottom: 1.5rem;">
+                <span class="status-badge badge-{{ alert.status or 'unknown' }} badge-lg" style="font-size: 1rem; padding: 8px 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">{{ (alert.status or 'unknown') | replace('_', ' ') | upper }}</span>
+                <span class="type-badge type-{{ alert.type or 'unknown' }} badge-lg" style="font-size: 1rem; padding: 8px 16px;">{{ (alert.type or 'unknown') | upper }}</span>
+            </div>
+
+            <p class="detail-message">{{ alert.message }}</p>
+
+            <div class="detail-meta-grid">
+                <div class="meta-block">
+                    <span class="meta-label">Location</span>
+                    <span class="meta-value"><i data-lucide="map-pin"></i> {{ alert.location or 'Unknown' }}</span>
+                </div>
+                <div class="meta-block">
+                    <span class="meta-label">Reported By</span>
+                    <span class="meta-value"><i data-lucide="user"></i> {{ alert.reporter.name if alert.reporter else 'Unknown' }}</span>
+                </div>
+                <div class="meta-block">
+                    <span class="meta-label">Reported At</span>
+                    <span class="meta-value"><i data-lucide="clock"></i> {{ alert.timestamp.strftime('%Y-%m-%d %H:%M:%S') if alert.timestamp and alert.timestamp.strftime is defined else (alert.timestamp if alert.timestamp else 'Unknown') }}</span>
+                </div>
+            </div>
+
+            <!-- Scores -->
+            <div class="scores-panel">
+                <div class="score-block">
+                    <span class="score-title">Severity</span>
+                    <div class="score-bar-large">
+                        <div class="severity-fill severity-{{ 'high' if (alert.severity or 0) >= 7 else ('medium' if (alert.severity or 0) >= 4 else 'low') }}" {{ ('style="width: ' ~ ((alert.severity or 0) * 10) ~ '%;"') | safe }}></div>
+                    </div>
+                    <span class="score-number">{{ alert.severity or 0 }}/10</span>
+                </div>
+                <div class="score-block">
+                    <span class="score-title">Confidence</span>
+                    <div class="score-bar-large confidence-bar-live" id="confidence-bar-{{ alert.id }}">
+                        <div class="confidence-fill" {{ ('style="width: ' ~ (((alert.confidence or 0) * 100) | int) ~ '%;"') | safe }}></div>
+                    </div>
+                    <span class="score-number" id="confidence-value-{{ alert.id }}">{{ "%.0f" | format((alert.confidence or 0) * 100) }}%</span>
+                </div>
+                <div class="score-block">
+                    <span class="score-title">Evidence</span>
+                    <div class="score-bar-large">
+                        <div class="evidence-fill" {{ ('style="width: ' ~ (alert.evidence_score or 0) ~ '%;"') | safe }}></div>
+                    </div>
+                    <span class="score-number">{{ alert.evidence_score or 0 }}/100 ({{ alert.evidence_strength or 'Unknown' }})</span>
+                </div>
+            </div>
+
+            <!-- X-Logic Explanation -->
+            <div class="xlogic-panel" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-glass); border-radius: var(--radius-lg); padding: 1.5rem; position: relative; overflow: hidden;">
+                <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--accent-gradient);"></div>
+                <div class="xlogic-header" style="color: var(--accent); font-weight: 600; font-size: 1.1rem;">
+                    <i data-lucide="brain"></i>
+                    <span>X-Logic — AI Reasoning Engine</span>
+                </div>
+                <p class="xlogic-text" style="font-size: 1rem; line-height: 1.6; color: var(--text-secondary); margin-top: 1rem;">{{ alert.explanation or 'No explanation provided.' }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar: Votes + Timeline -->
+    <div class="detail-sidebar">
+        <!-- Votes Summary -->
+        <div class="sidebar-card animate-fade-in-up stagger-1" style="background: var(--bg-glass-premium); border: 1px solid var(--border-glass); border-radius: var(--radius-xl); padding: 2rem; backdrop-filter: blur(24px) saturate(150%); box-shadow: var(--shadow-xl);">
+            <h3 class="sidebar-title" style="font-size: 1.25rem; font-weight: 700; border-bottom: 1px solid var(--border-glass); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+                <i data-lucide="users"></i>
+                Crowd Verification
+            </h3>
+            <div class="votes-summary">
+                <div class="vote-stat vote-confirm">
+                    <div class="vote-icon-wrap" style="width: 48px; height: 48px; border-radius: 50%; background: rgba(52, 199, 89, 0.12); display: flex; align-items: center; justify-content: center; margin: 0 auto 0.75rem;">
+                        <i data-lucide="check-circle" style="width: 24px; height: 24px; color: var(--color-confirm);"></i>
+                    </div>
+                    <span class="vote-count" id="confirm-count-{{ alert.id }}">{{ alert.confirmations_count or 0 }}</span>
+                    <span class="vote-label">Confirmations</span>
+                </div>
+                <div class="vote-stat vote-reject">
+                    <div class="vote-icon-wrap" style="width: 48px; height: 48px; border-radius: 50%; background: rgba(255, 59, 48, 0.12); display: flex; align-items: center; justify-content: center; margin: 0 auto 0.75rem;">
+                        <i data-lucide="x-circle" style="width: 24px; height: 24px; color: var(--color-reject);"></i>
+                    </div>
+                    <span class="vote-count" id="reject-count-{{ alert.id }}">{{ alert.rejections_count or 0 }}</span>
+                    <span class="vote-label">Rejections</span>
+                </div>
+            </div>
+
+            {% if user_vote %}
+            <div class="voted-badge mt-md">
+                <i data-lucide="check"></i>
+                <span>You voted: {{ (user_vote.vote or 'unknown') | upper }}</span>
+            </div>
+            {% elif current_user.is_authenticated and current_user.id != alert.reported_by and alert.status in ['new', 'awaiting_review', 'verifying'] %}
+            <div class="vote-actions-detail" id="vote-actions-{{ alert.id }}">
+                <button class="btn btn-confirm btn-full" onclick="castVote(Number('{{ alert.id }}'), 'confirm')" id="btn-confirm-{{ alert.id }}">
+                    <i data-lucide="check"></i> Confirm This Alert
+                </button>
+                <button class="btn btn-reject btn-full" onclick="castVote(Number('{{ alert.id }}'), 'reject')" id="btn-reject-{{ alert.id }}">
+                    <i data-lucide="x"></i> Reject This Alert
+                </button>
+            </div>
+            {% endif %}
+
+            <!-- Voter List -->
+            {% if votes %}
+            <div class="voter-list">
+                {% for vote in votes %}
+                <div class="voter-item animate-fade-in-up">
+                    <div class="voter-avatar {{ 'vote-confirm-bg' if vote.vote == 'confirm' else 'vote-reject-bg' }}">
+                        {{ (vote.voter.name[0] | upper) if (vote.voter and vote.voter.name and vote.voter.name|length > 0) else '?' }}
+                    </div>
+                    <div class="voter-info">
+                        <span class="voter-name">{{ vote.voter.name if vote.voter else 'Unknown' }}</span>
+                        <span class="voter-weight">weight: {{ "%.2f" | format(vote.vote_weight or 0) }}</span>
+                    </div>
+                    <span class="status-badge badge-{{ 'verified' if vote.vote == 'confirm' else 'rejected' }}" style="font-size: 10px;">
+                        {{ (vote.vote or 'unknown') | upper }}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Share -->
+        <div class="sidebar-card animate-fade-in-up stagger-2" style="background: var(--bg-glass-premium); border: 1px solid var(--border-glass); border-radius: var(--radius-xl); padding: 1.5rem; backdrop-filter: blur(24px) saturate(150%); box-shadow: var(--shadow-xl);">
+            <h3 class="sidebar-title" style="font-size: 1.1rem; border-bottom: 1px solid var(--border-glass); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+                <i data-lucide="share-2"></i>
+                Share Alert
+            </h3>
+            <div class="share-actions-grid">
+                <a class="btn btn-ghost btn-sm" href="{{ share_links.whatsapp if share_links else '#' }}" target="_blank" rel="noopener noreferrer" style="border: 1px solid var(--border-glass); background: rgba(0,0,0,0.2);">
+                    <i data-lucide="message-circle" style="width: 16px; height: 16px;"></i> WhatsApp
+                </a>
+                <a class="btn btn-ghost btn-sm" href="{{ share_links.twitter if share_links else '#' }}" target="_blank" rel="noopener noreferrer" style="border: 1px solid var(--border-glass); background: rgba(0,0,0,0.2);">
+                    <i data-lucide="send" style="width: 16px; height: 16px;"></i> Twitter
+                </a>
+                <a class="btn btn-ghost btn-sm share-email-btn" href="{{ share_links.email if share_links else '#' }}" style="border: 1px solid var(--border-glass); background: rgba(0,0,0,0.2);">
+                    <i data-lucide="mail" style="width: 16px; height: 16px;"></i> Email Link
+                </a>
+            </div>
+        </div>
+
+        <!-- Timeline -->
+        <div class="sidebar-card animate-fade-in-up stagger-3" style="background: var(--bg-glass-premium); border: 1px solid var(--border-glass); border-radius: var(--radius-xl); padding: 1.5rem; backdrop-filter: blur(24px) saturate(150%); box-shadow: var(--shadow-xl);">
+            <h3 class="sidebar-title" style="font-size: 1.1rem; border-bottom: 1px solid var(--border-glass); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+                <i data-lucide="clock"></i>
+                Audit Timeline
+            </h3>
+            <div class="timeline" id="alert-timeline" style="margin-left: 0.5rem; border-left: 2px solid var(--border-glass);">
+                {% for log in timeline %}
+                <div class="timeline-event" style="position: relative; padding-left: 1.5rem; margin-bottom: 1rem;">
+                    <div class="timeline-dot" style="position: absolute; left: -6px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent);"></div>
+                    <div class="timeline-content">
+                        <span class="timeline-action" style="font-weight: 600; color: var(--text-primary);">{{ log.action }}</span>
+                        <span class="timeline-detail" style="font-size: 0.85rem; color: var(--text-secondary); display: block; margin-top: 2px;">{{ log.detail or '' }}</span>
+                        <span class="timeline-time" style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono); margin-top: 4px; display: block;">{{ log.logged_at.strftime('%H:%M:%S') if log.logged_at and log.logged_at.strftime is defined else (log.logged_at if log.logged_at else 'Unknown') }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/websocket.js') }}"></script>
+<script src="{{ url_for('static', filename='js/voting.js') }}"></script>
+<script>
+    // Join this alert's WebSocket room for live updates
+    if (typeof socket !== 'undefined') {
+        socket.emit('join_alert', { alert_id: Number("{{ alert.id }}") });
+    }
+</script>
+{% endblock %}

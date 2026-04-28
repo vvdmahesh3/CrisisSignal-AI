@@ -1,0 +1,360 @@
+{% extends "base.html" %}
+{% block title %}Report Incident — CrisisSignal AI{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Report an Incident</h1>
+    <p class="page-subtitle">Submit structured emergency information for AI analysis</p>
+</div>
+
+<div class="report-layout">
+    <!-- Left: Form -->
+    <div class="report-form-section">
+        <form method="POST" action="{{ url_for('alerts.report') }}" class="report-form" id="report-form"
+              enctype="multipart/form-data"
+              style="background: var(--bg-glass-premium); border: 1px solid var(--border-glass); border-radius: var(--radius-xl); padding: 2.5rem; backdrop-filter: blur(24px) saturate(150%); box-shadow: var(--shadow-xl); position: relative; overflow: hidden;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="position: absolute; top: -50px; left: -50px; width: 150px; height: 150px; background: radial-gradient(circle, var(--color-critical) 0%, transparent 70%); opacity: 0.1; filter: blur(30px); border-radius: 50%; pointer-events: none;"></div>
+
+            <div class="form-group" style="margin-bottom: 2rem;">
+                <label for="message" class="form-label" style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text-primary); margin-bottom: 0.75rem;">
+                    <i data-lucide="message-square" style="color: var(--accent);"></i>
+                    Incident Description
+                </label>
+                <textarea
+                    id="message"
+                    name="message"
+                    class="form-textarea"
+                    style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 1rem; color: var(--text-primary); font-family: inherit; font-size: 1rem; transition: all 0.3s ease; resize: vertical;"
+                    placeholder="Describe what is happening — location, what you see, urgency..."
+                    maxlength="500"
+                    rows="5"
+                    required
+                    oninput="updatePreview()"
+                    onfocus="this.style.borderColor='var(--accent)'; this.style.boxShadow='0 0 0 3px rgba(78, 205, 196, 0.1)';"
+                    onblur="this.style.borderColor='var(--border-subtle)'; this.style.boxShadow='none';"
+                ></textarea>
+                <div class="char-count" style="text-align: right; font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">
+                    <span id="char-current">0</span>/500
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 2.5rem;">
+                <label for="location" class="form-label" style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text-primary); margin-bottom: 0.75rem;">
+                    <i data-lucide="map-pin" style="color: var(--color-warning);"></i>
+                    Location
+                </label>
+                <select id="location" name="location" class="form-select" onchange="toggleCustomLocation()" style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 1rem; color: var(--text-primary); font-family: inherit; font-size: 1rem; cursor: pointer; transition: all 0.3s ease; appearance: none; background-image: url('data:image/svg+xml;utf8,<svg fill=%22%23ffffff%22 height=%2224%22 viewBox=%220 0 24 24%22 width=%2224%22 xmlns=%22http://www.w3.org/2000/svg%22><path d=%22M7 10l5 5 5-5z%22/><path d=%22M0 0h24v24H0z%22 fill=%22none%22/></svg>'); background-repeat: no-repeat; background-position-x: 98%; background-position-y: 50%;">
+                    <option value="Unknown" style="background: var(--bg-surface);">Select location...</option>
+                    <option value="Block A — Ground Floor" style="background: var(--bg-surface);">Block A — Ground Floor</option>
+                    <option value="Block A — Floor 1" style="background: var(--bg-surface);">Block A — Floor 1</option>
+                    <option value="Block A — Floor 2" style="background: var(--bg-surface);">Block A — Floor 2</option>
+                    <option value="Block A — Floor 3" style="background: var(--bg-surface);">Block A — Floor 3</option>
+                    <option value="Block B — Ground Floor" style="background: var(--bg-surface);">Block B — Ground Floor</option>
+                    <option value="Block B — Floor 1" style="background: var(--bg-surface);">Block B — Floor 1</option>
+                    <option value="Block B — Floor 2" style="background: var(--bg-surface);">Block B — Floor 2</option>
+                    <option value="Block C — Hostel" style="background: var(--bg-surface);">Block C — Hostel</option>
+                    <option value="Block C, Floor 3 — Hostel Staircase" style="background: var(--bg-surface);">Block C, Floor 3 — Hostel Staircase</option>
+                    <option value="Main Library — Ground Floor" style="background: var(--bg-surface);">Main Library — Ground Floor</option>
+                    <option value="Main Library — Upper Floor" style="background: var(--bg-surface);">Main Library — Upper Floor</option>
+                    <option value="Main Gate — Entrance" style="background: var(--bg-surface);">Main Gate — Entrance</option>
+                    <option value="Parking Area" style="background: var(--bg-surface);">Parking Area</option>
+                    <option value="Canteen" style="background: var(--bg-surface);">Canteen</option>
+                    <option value="Auditorium" style="background: var(--bg-surface);">Auditorium</option>
+                    <option value="Lab Building — Ground Floor" style="background: var(--bg-surface);">Lab Building — Ground Floor</option>
+                    <option value="Lab Building — Floor 1" style="background: var(--bg-surface);">Lab Building — Floor 1</option>
+                    <option value="Sports Ground" style="background: var(--bg-surface);">Sports Ground</option>
+                    <option value="Campus Ground — Open Area" style="background: var(--bg-surface);">Campus Ground — Open Area</option>
+                    <option value="Other" style="background: var(--bg-surface); font-weight: bold; color: var(--accent);">Other (Custom Location)</option>
+                </select>
+
+                <div id="custom-location-group" style="display: none; margin-top: 1rem; animation: fade-in-up 0.3s ease-out;">
+                    <div style="display: flex; gap: 0.5rem; align-items: stretch;">
+                        <input type="text" id="custom_location" name="custom_location" class="form-input" placeholder="Type your exact location here..." style="flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--accent); border-radius: var(--radius-lg); padding: 1rem; color: var(--text-primary); font-family: inherit; font-size: 1rem; transition: all 0.3s ease; box-shadow: 0 0 15px rgba(78, 205, 196, 0.15);">
+                        <button type="button" class="btn btn-ghost" onclick="getGPSLocation()" id="gps-btn" style="border: 1px solid var(--border-glass); background: rgba(0,0,0,0.2); border-radius: var(--radius-lg); padding: 0 1rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                            <i data-lucide="crosshair" style="width: 20px; height: 20px; color: var(--accent);"></i>
+                        </button>
+                    </div>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;"><i data-lucide="info" style="width: 12px; height: 12px; display: inline-block; vertical-align: middle;"></i> Please be as specific as possible to help responders.</p>
+                </div>
+            </div>
+
+            <!-- Phase 3: Emergency Toggle + Contact Phone + Photo Evidence -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+
+                <!-- Emergency Flag -->
+                <div style="background: rgba(255,45,85,0.07); border: 1px solid rgba(255,45,85,0.25); border-radius: var(--radius-lg); padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text-primary);">
+                        <i data-lucide="siren" style="color: var(--color-critical);"></i>
+                        Emergency Alert
+                    </label>
+                    <label class="toggle-switch" style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
+                        <input type="checkbox" id="is_emergency" name="is_emergency" style="display:none;" onchange="toggleEmergencyMode(this)">
+                        <span class="toggle-track" id="toggle-track" style="width:46px; height:24px; background: rgba(255,255,255,0.1); border-radius: 12px; position:relative; transition: background 0.3s; border: 1px solid var(--border-subtle);">
+                            <span class="toggle-thumb" id="toggle-thumb" style="width:18px; height:18px; background: #ccc; border-radius: 50%; position: absolute; top:2px; left:2px; transition: all 0.3s;"></span>
+                        </span>
+                        <span id="emergency-label" style="font-size: 0.9rem; color: var(--text-secondary);">Not emergency</span>
+                    </label>
+                    <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0;">Marks as high-priority and auto-escalates severity.</p>
+                </div>
+
+                <!-- Contact Phone -->
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <label for="contact_phone" style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text-primary);">
+                        <i data-lucide="phone" style="color: var(--color-verified);"></i>
+                        Contact Number
+                    </label>
+                    <input type="tel" id="contact_phone" name="contact_phone"
+                           placeholder="+91 XXXXXXXXXX"
+                           pattern="[0-9+\-\s()]{6,20}"
+                           style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 1rem; color: var(--text-primary); font-family: inherit; font-size: 1rem; transition: all 0.3s ease; width: 100%;">
+                    <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0;">Responders may call you for details (optional).</p>
+                </div>
+            </div>
+
+            <!-- Photo Evidence Upload -->
+            <div class="form-group" style="margin-bottom: 2rem;">
+                <label for="photo_evidence" style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text-primary); margin-bottom: 0.75rem;">
+                    <i data-lucide="camera" style="color: var(--accent);"></i>
+                    Photo Evidence <span style="color: var(--text-muted); font-weight: 400; font-size: 0.85rem;">&nbsp;(optional — max 5 MB, JPG/PNG/WEBP)</span>
+                </label>
+                <div id="photo-drop-zone" onclick="document.getElementById('photo_evidence').click()"
+                     style="border: 2px dashed var(--border-glass); border-radius: var(--radius-lg); padding: 2rem; text-align: center; cursor: pointer; transition: all 0.3s; background: rgba(0,0,0,0.1);">
+                    <i data-lucide="upload-cloud" style="width: 36px; height: 36px; color: var(--text-muted); display: block; margin: 0 auto 0.75rem;"></i>
+                    <p style="color: var(--text-secondary); margin: 0; font-size: 0.9rem;">Click to upload or drag & drop a photo</p>
+                    <p id="photo-filename" style="color: var(--accent); font-size: 0.85rem; margin-top: 0.5rem; display: none;"></p>
+                </div>
+                <input type="file" id="photo_evidence" name="photo_evidence"
+                       accept=".jpg,.jpeg,.png,.webp"
+                       style="display: none;"
+                       onchange="handlePhotoSelect(this)">
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full" id="btn-submit-report" style="padding: 1.25rem; font-size: 1.1rem; font-weight: 700; border-radius: var(--radius-lg); text-transform: uppercase; letter-spacing: 0.05em; background: linear-gradient(135deg, var(--color-critical), #ff0040); box-shadow: 0 4px 20px rgba(255, 45, 85, 0.4); border: none; transition: transform 0.2s, box-shadow 0.2s;">
+                <i data-lucide="alert-triangle" style="margin-right: 8px;"></i>
+                <span style="display: inline-block; vertical-align: middle;">Submit Emergency Report</span>
+            </button>
+        </form>
+    </div>
+
+    <!-- Right: Live AI Preview -->
+    <div class="ai-preview-section" id="ai-preview">
+        <div class="preview-header">
+            <i data-lucide="brain"></i>
+            <span>Live AI Analysis</span>
+        </div>
+        <div class="preview-content" id="preview-content">
+            <div class="preview-placeholder">
+                <i data-lucide="type"></i>
+                <p>Start typing to see real-time AI classification...</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+<script>
+    let previewTimeout = null;
+
+    function toggleCustomLocation() {
+        const select = document.getElementById('location');
+        const customGroup = document.getElementById('custom-location-group');
+        const customInput = document.getElementById('custom_location');
+        
+        if (select.value === 'Other') {
+            customGroup.style.display = 'block';
+            customInput.required = true;
+            customInput.focus();
+        } else {
+            customGroup.style.display = 'none';
+            customInput.required = false;
+            customInput.value = '';
+        }
+    }
+
+    function getGPSLocation() {
+        const btn = document.getElementById('gps-btn');
+        const input = document.getElementById('custom_location');
+        const icon = btn.querySelector('i');
+        
+        if (!navigator.geolocation) {
+            alert("Geolocation is not supported by your browser.");
+            return;
+        }
+
+        // Visual feedback
+        icon.classList.add('animate-spin');
+        input.placeholder = "Acquiring satellite lock...";
+
+        navigator.geolocation.getCurrentPosition(async (position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            
+            try {
+                // Reverse geocoding using OpenStreetMap Nominatim
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+                const data = await res.json();
+                
+                if (data && data.display_name) {
+                    // Extract a clean, readable location
+                    let cleanLoc = "";
+                    if (data.address.road) cleanLoc += data.address.road + ", ";
+                    if (data.address.suburb || data.address.neighbourhood) cleanLoc += (data.address.suburb || data.address.neighbourhood) + ", ";
+                    if (data.address.city || data.address.town) cleanLoc += (data.address.city || data.address.town);
+                    
+                    input.value = cleanLoc || data.display_name;
+                } else {
+                    input.value = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+                }
+            } catch (err) {
+                input.value = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+            }
+            
+            icon.classList.remove('animate-spin');
+            input.placeholder = "Type your exact location here...";
+            lucide.createIcons();
+            
+        }, (error) => {
+            icon.classList.remove('animate-spin');
+            input.placeholder = "Type your exact location here...";
+            if (error.code === error.PERMISSION_DENIED) {
+                alert("Location permission denied. Please allow location access or type manually.");
+            } else {
+                alert("Failed to get location. Please type it manually.");
+            }
+        }, { enableHighAccuracy: true, timeout: 10000 });
+    }
+
+    function toggleEmergencyMode(checkbox) {
+        const track = document.getElementById('toggle-track');
+        const thumb = document.getElementById('toggle-thumb');
+        const label = document.getElementById('emergency-label');
+        const submitBtn = document.getElementById('btn-submit-report');
+        if (checkbox.checked) {
+            track.style.background = 'var(--color-critical)';
+            thumb.style.left = '24px';
+            thumb.style.background = '#fff';
+            label.textContent = 'EMERGENCY — High priority';
+            label.style.color = 'var(--color-critical)';
+        } else {
+            track.style.background = 'rgba(255,255,255,0.1)';
+            thumb.style.left = '2px';
+            thumb.style.background = '#ccc';
+            label.textContent = 'Not emergency';
+            label.style.color = 'var(--text-secondary)';
+        }
+    }
+
+    function handlePhotoSelect(input) {
+        const zone = document.getElementById('photo-drop-zone');
+        const label = document.getElementById('photo-filename');
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+            label.textContent = 'Selected: ' + file.name + ' (' + sizeMB + ' MB)';
+            label.style.display = 'block';
+            zone.style.borderColor = 'var(--accent)';
+            zone.style.background = 'rgba(78,205,196,0.05)';
+        } else {
+            label.style.display = 'none';
+            zone.style.borderColor = 'var(--border-glass)';
+        }
+    }
+
+    function updatePreview() {
+        const message = document.getElementById('message').value;
+        const charCount = document.getElementById('char-current');
+        charCount.textContent = message.length;
+
+        // Debounce: wait 300ms after user stops typing
+        clearTimeout(previewTimeout);
+        if (message.length < 3) {
+            document.getElementById('preview-content').innerHTML = `
+                <div class="preview-placeholder">
+                    <i data-lucide="type"></i>
+                    <p>Start typing to see real-time AI classification...</p>
+                </div>
+            `;
+            lucide.createIcons();
+            return;
+        }
+
+        previewTimeout = setTimeout(async () => {
+            try {
+                const res = await fetch('/api/alerts/preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                });
+                const data = await res.json();
+                renderPreview(data);
+            } catch (err) {
+                console.error('Preview failed:', err);
+            }
+        }, 300);
+    }
+
+    function renderPreview(data) {
+        const container = document.getElementById('preview-content');
+        const severityClass = data.severity >= 7 ? 'high' : (data.severity >= 4 ? 'medium' : 'low');
+        const confidencePercent = Math.round(data.confidence * 100);
+
+        container.innerHTML = `
+            <div class="preview-result animate-fade-in">
+                <div class="preview-classification">
+                    <span class="type-badge type-${data.type}">${data.type.toUpperCase()}</span>
+                    <span class="evidence-badge evidence-${data.evidence_strength.toLowerCase()}">${data.evidence_strength} Evidence</span>
+                </div>
+
+                <div class="preview-scores">
+                    <div class="preview-score-item">
+                        <span class="score-label">Severity</span>
+                        <div class="severity-bar">
+                            <div class="severity-fill severity-${severityClass}" style="width: ${data.severity * 10}%"></div>
+                        </div>
+                        <span class="score-value">${data.severity}/10</span>
+                    </div>
+                    <div class="preview-score-item">
+                        <span class="score-label">Confidence</span>
+                        <div class="confidence-bar-preview">
+                            <div class="confidence-fill" style="width: ${confidencePercent}%"></div>
+                        </div>
+                        <span class="score-value">${confidencePercent}%</span>
+                    </div>
+                    <div class="preview-score-item">
+                        <span class="score-label">Evidence Score</span>
+                        <div class="evidence-bar">
+                            <div class="evidence-fill" style="width: ${data.evidence_score}%"></div>
+                        </div>
+                        <span class="score-value">${data.evidence_score}/100</span>
+                    </div>
+                </div>
+
+                ${data.keywords_found.length > 0 ? `
+                    <div class="preview-keywords">
+                        <span class="keywords-label">Detected Keywords:</span>
+                        ${data.keywords_found.map(kw => `<span class="keyword-tag">${kw}</span>`).join('')}
+                    </div>
+                ` : ''}
+
+                ${data.suspicion_flags.length > 0 ? `
+                    <div class="preview-suspicion">
+                        <i data-lucide="alert-triangle"></i>
+                        <span>Suspicion detected: ${data.suspicion_flags.join(', ')}</span>
+                    </div>
+                ` : ''}
+
+                <div class="preview-explanation">
+                    <span class="explanation-label">X-Logic:</span>
+                    <p>${data.explanation}</p>
+                </div>
+            </div>
+        `;
+        lucide.createIcons();
+    }
+</script>
+{% endblock %}

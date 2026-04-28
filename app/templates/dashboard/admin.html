@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}Command Center — CrisisSignal AI{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="background: linear-gradient(135deg, rgba(255, 59, 92, 0.08), rgba(0,0,0,0.3)); padding: 3.5rem; border-radius: var(--radius-xl); border: 1px solid var(--border-glass); position: relative; overflow: hidden; margin-bottom: 3rem; backdrop-filter: blur(20px); box-shadow: var(--shadow-xl);">
+    <!-- Glowing Red Orb Background -->
+    <div style="position: absolute; top: -20%; left: -5%; width: 400px; height: 400px; background: radial-gradient(circle, var(--color-critical) 0%, transparent 70%); opacity: 0.15; filter: blur(50px); border-radius: 50%; pointer-events: none;"></div>
+    
+    <div class="page-title-group" style="position: relative; z-index: 1;">
+        <div style="display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.03); padding: 6px 14px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 1.5rem;">
+            <div style="width: 8px; height: 8px; background: var(--color-critical); border-radius: 50%; box-shadow: 0 0 12px var(--color-critical);"></div>
+            <span style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-secondary);">Command Center Active</span>
+        </div>
+        <h1 class="page-title" style="font-size: 3rem; font-weight: 800; letter-spacing: -0.04em; margin-bottom: 0.5rem; text-shadow: 0 4px 24px rgba(0,0,0,0.5);">
+            Security <span style="background: linear-gradient(135deg, #ff3b5c, #ff9500); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 8px rgba(255, 59, 92, 0.3));">Overwatch</span>
+        </h1>
+        <p class="page-subtitle" style="font-size: 1.15rem; color: var(--text-secondary); max-width: 600px; line-height: 1.6;">Real-time crisis intelligence dashboard. Priority-sorted alerts for instant institutional response.</p>
+    </div>
+    
+    <div class="header-actions" style="position: relative; z-index: 1; margin-top: 2.5rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+        <a href="{{ url_for('admin.analytics') }}" class="btn btn-primary btn-lg" style="background: linear-gradient(135deg, #ff3b5c, #ff6b35); box-shadow: 0 8px 32px rgba(255, 59, 92, 0.4); border-radius: 12px; padding: 14px 28px; font-weight: 600;">
+            <i data-lucide="bar-chart-3" style="width: 20px; height: 20px;"></i>
+            <span>Deep Analytics</span>
+        </a>
+        <a href="{{ url_for('demo.scenarios') }}" class="btn btn-ghost btn-lg" style="border-radius: 12px; padding: 14px 24px; font-weight: 500;">
+            <i data-lucide="play-circle" style="width: 18px; height: 18px;"></i>
+            <span>Simulation Mode</span>
+        </a>
+        <!-- Phase 3: CSV Export Buttons -->
+        <a href="{{ url_for('admin.export_alerts') }}" class="btn btn-ghost btn-lg" style="border-radius: 12px; padding: 14px 24px; font-weight: 500; border-color: rgba(78,205,196,0.4);" title="Download all alerts as CSV">
+            <i data-lucide="download" style="width: 18px; height: 18px; color: var(--accent);"></i>
+            <span>Export Alerts</span>
+        </a>
+        <a href="{{ url_for('admin.export_audit') }}" class="btn btn-ghost btn-lg" style="border-radius: 12px; padding: 14px 24px; font-weight: 500; border-color: rgba(78,205,196,0.2);" title="Download full audit trail as CSV">
+            <i data-lucide="file-text" style="width: 18px; height: 18px; color: var(--text-muted);"></i>
+            <span>Audit Log</span>
+        </a>
+    </div>
+</div>
+
+<!-- Stats Overview -->
+<div class="stats-grid">
+    <div class="stat-card stat-critical animate-fade-in-up stagger-1">
+        <div class="stat-icon stat-icon-red">
+            <i data-lucide="alert-octagon"></i>
+        </div>
+        <div class="stat-info">
+            <span class="stat-value" id="stat-critical" data-counter="{{ (stats.critical if stats else 0) }}">{{ (stats.critical if stats else 0) }}</span>
+            <span class="stat-label">Critical</span>
+        </div>
+    </div>
+    <div class="stat-card animate-fade-in-up stagger-2">
+        <div class="stat-icon stat-icon-orange">
+            <i data-lucide="shield-check"></i>
+        </div>
+        <div class="stat-info">
+            <span class="stat-value" id="stat-verified" data-counter="{{ (stats.verified if stats else 0) }}">{{ (stats.verified if stats else 0) }}</span>
+            <span class="stat-label">Verified</span>
+        </div>
+    </div>
+    <div class="stat-card animate-fade-in-up stagger-3">
+        <div class="stat-icon stat-icon-yellow">
+            <i data-lucide="clock"></i>
+        </div>
+        <div class="stat-info">
+            <span class="stat-value" id="stat-verifying" data-counter="{{ (stats.verifying if stats else 0) }}">{{ (stats.verifying if stats else 0) }}</span>
+            <span class="stat-label">Verifying</span>
+        </div>
+    </div>
+    <div class="stat-card animate-fade-in-up stagger-4">
+        <div class="stat-icon stat-icon-blue">
+            <i data-lucide="activity"></i>
+        </div>
+        <div class="stat-info">
+            <span class="stat-value" id="stat-total-active" data-counter="{{ (stats.total_active if stats else 0) }}">{{ (stats.total_active if stats else 0) }}</span>
+            <span class="stat-label">Total Active</span>
+        </div>
+    </div>
+</div>
+
+<!-- Active Alerts -->
+<div class="section">
+    <div class="section-header">
+        <h2 class="section-title">
+            <i data-lucide="zap"></i>
+            Priority Feed
+        </h2>
+        <div class="filter-group">
+            <select class="filter-select" id="filter-status" onchange="filterAlerts()">
+                <option value="">All Status</option>
+                <option value="critical">Critical</option>
+                <option value="verified">Verified</option>
+                <option value="verifying">Verifying</option>
+                <option value="awaiting_review">Awaiting Review</option>
+                <option value="new">New</option>
+            </select>
+            <select class="filter-select" id="filter-type" onchange="filterAlerts()">
+                <option value="">All Types</option>
+                <option value="fire">Fire</option>
+                <option value="medical">Medical</option>
+                <option value="violence">Violence</option>
+                <option value="theft">Theft</option>
+                <option value="infra">Infrastructure</option>
+                <option value="general">General</option>
+            </select>
+        </div>
+    </div>
+
+    {% if alerts %}
+    <div class="alerts-list" id="alerts-list">
+        {% for alert in alerts %}
+        <div class="alert-row status-{{ alert.status or 'unknown' }} animate-fade-in-up stagger-{{ loop.index }}"
+             data-alert-id="{{ alert.id }}" data-status="{{ alert.status or 'unknown' }}" data-type="{{ alert.type or 'unknown' }}">
+            <div class="alert-row-priority">
+                {% set severity_val = alert.severity or 0 %}
+                {% if severity_val >= 7 %}
+                    {% set severity_class = 'high' %}
+                {% elif severity_val >= 4 %}
+                    {% set severity_class = 'medium' %}
+                {% else %}
+                    {% set severity_class = 'low' %}
+                {% endif %}
+                <div class="severity-indicator severity-{{ severity_class }}">
+                    {{ severity_val }}
+                </div>
+            </div>
+            <div class="alert-row-main">
+                <div class="alert-row-header">
+                    <span class="status-badge badge-{{ alert.status or 'unknown' }}">{{ (alert.status or 'unknown') | replace('_', ' ') | upper }}</span>
+                    <span class="type-badge type-{{ alert.type or 'unknown' }}">{{ (alert.type or 'unknown') | upper }}</span>
+                    <span class="alert-location">
+                        <i data-lucide="map-pin"></i>
+                        {{ alert.location or 'Unknown' }}
+                    </span>
+                </div>
+                <p class="alert-row-message">{{ (alert.message or '')[:200] }}</p>
+                <div class="alert-row-meta">
+                    <span class="confidence-inline">
+                        <span class="confidence-bar-mini">
+                            <span class="confidence-fill" {{ ('style="width: ' ~ (((alert.confidence or 0) * 100) | int) ~ '%;"') | safe }}></span>
+                        </span>
+                        {{ "%.0f" | format((alert.confidence or 0) * 100) }}%
+                    </span>
+                    <span class="votes-inline">
+                        ✅ {{ alert.confirmations_count or 0 }} / ❌ {{ alert.rejections_count or 0 }}
+                    </span>
+                    <span class="evidence-inline evidence-{{ (alert.evidence_strength or 'none') | lower }}">
+                        {{ alert.evidence_strength or 'None' }}
+                    </span>
+                </div>
+            </div>
+            <div class="alert-row-actions">
+                <a href="{{ url_for('alerts.detail', alert_id=alert.id) }}" class="btn btn-ghost btn-sm">Details</a>
+                {% if alert.status not in ['resolved', 'rejected', 'critical'] %}
+                <form method="POST" action="{{ url_for('admin.escalate_alert', alert_id=alert.id) }}" style="display:inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-warning btn-sm">Escalate</button>
+                </form>
+                {% endif %}
+                {% if alert.status != 'resolved' %}
+                <form method="POST" action="{{ url_for('admin.resolve_alert', alert_id=alert.id) }}" style="display:inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="resolution_note" value="Resolved by admin">
+                    <button type="submit" class="btn btn-success btn-sm">Resolve</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i data-lucide="shield-check"></i>
+        <h3>All Clear</h3>
+        <p>No active alerts at the moment. The campus is safe.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/websocket.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script>
+    function filterAlerts() {
+        const statusFilter = document.getElementById('filter-status').value;
+        const typeFilter = document.getElementById('filter-type').value;
+        const rows = document.querySelectorAll('.alert-row');
+
+        rows.forEach(row => {
+            const matchesStatus = !statusFilter || row.dataset.status === statusFilter;
+            const matchesType = !typeFilter || row.dataset.type === typeFilter;
+            row.style.display = (matchesStatus && matchesType) ? 'flex' : 'none';
+        });
+    }
+</script>
+{% endblock %}

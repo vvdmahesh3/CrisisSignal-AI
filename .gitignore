@@ -1,3 +1,60 @@
+# ── Python ──────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyc
+.Python
+
+# ── Virtual Environment ──────────────────────────────────────
+venv/
+env/
+ENV/
+.venv/
+
+# ── Environment / Secrets ────────────────────────────────────
+.env
+*.env
+!.env.example
+
+# ── Flask / SQLite ───────────────────────────────────────────
+instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Uploads ──────────────────────────────────────────────────
+app/static/uploads/
+
+# ── ML Model Artifacts ───────────────────────────────────────
+app/ml/*.pkl
+app/ml/*.joblib
+
+# ── Logs ─────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── OS Files ─────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDE ──────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.code-workspace
+
+# ── Build / Distribution ─────────────────────────────────────
+dist/
+build/
+*.egg-info/
+
+# ── Old Docs (archived) ──────────────────────────────────────
 CrisisSignal_AI_Rapid_Crisis_Response_Documentatio.md
 DOCUMENTATION old.md
 DOCUMENTATION.md
+GDSC_Doc.md
+REDEVELOPMENT_PLAN.md
+testingDocu.md
+implementation_roadmap.md
+debug_db.py

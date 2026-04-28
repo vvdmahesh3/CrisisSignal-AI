@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}User Management — CrisisSignal AI{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-title-group">
+        <h1 class="page-title">User Management</h1>
+        <p class="page-subtitle">Reliability scores, trust metrics, and user status</p>
+    </div>
+</div>
+
+<div class="section">
+    <div class="card-flat" style="overflow-x: auto;">
+        <table class="users-table">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Role</th>
+                    <th>Reliability</th>
+                    <th>Reports</th>
+                    <th>Confirmed</th>
+                    <th>Rejected</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr class="animate-fade-in-up" {{ ('style="animation-delay: ' ~ (loop.index * 0.04) ~ 's;"') | safe }}>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div class="user-avatar" style="width: 32px; height: 32px; font-size: 12px;">
+                                {{ user.name[0] | upper if user.name and user.name|length > 0 else '?' }}
+                            </div>
+                            <div>
+                                <div style="font-weight: 500; color: var(--text-primary);">{{ user.name }}</div>
+                                <div style="font-size: 12px; color: var(--text-muted); font-family: var(--font-mono);">{{ user.email }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="status-badge"
+                            {% if user.role == 'admin' %}
+                                style="background: var(--accent-subtle); color: var(--accent); border: 1px solid rgba(139,122,255,0.3);"
+                            {% elif user.role == 'security' %}
+                                style="background: var(--color-awaiting-bg); color: var(--color-awaiting); border: 1px solid rgba(90,200,250,0.3);"
+                            {% else %}
+                                style="background: var(--bg-glass); color: var(--text-muted); border: 1px solid var(--border-subtle);"
+                            {% endif %}
+                        >{{ (user.role or 'user') | upper }}</span>
+                    </td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div class="reliability-bar">
+                                <div class="reliability-fill {{ 'high' if (user.reliability_score or 0) >= 0.7 else ('medium' if (user.reliability_score or 0) >= 0.4 else 'low') }}"
+                                     {{ ('style="width: ' ~ (((user.reliability_score or 0) * 100) | int) ~ '%;"') | safe }}></div>
+                            </div>
+                            <span class="text-mono text-sm" style="color: var(--text-primary);">
+                                {{ "%.0f" | format((user.reliability_score or 0) * 100) }}%
+                            </span>
+                        </div>
+                    </td>
+                    <td class="text-mono">{{ user.total_reports | default(0) }}</td>
+                    <td class="text-mono" style="color: var(--color-success);">{{ user.confirmed_reports | default(0) }}</td>
+                    <td class="text-mono" style="color: var(--color-error);">{{ user.rejected_reports | default(0) }}</td>
+                    <td>
+                        {% if user.is_flagged %}
+                        <span class="flagged-badge">
+                            <i data-lucide="flag" style="width: 10px; height: 10px;"></i>
+                            Flagged
+                        </span>
+                        {% else %}
+                        <span class="text-xs text-muted">Active</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

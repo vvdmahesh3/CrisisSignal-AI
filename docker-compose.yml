@@ -1,0 +1,91 @@
+# ────────────────────────────────────────────────────────────────────
+# CrisisSignal AI — docker-compose.yml
+# Phase 4: Full production stack — App + PostgreSQL + Nginx reverse proxy
+# ────────────────────────────────────────────────────────────────────
+version: "3.9"
+
+services:
+
+  # ── PostgreSQL Database ─────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB:-crisissignal}
+      POSTGRES_USER:     ${POSTGRES_USER:-crisissignal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}   # Required — no default
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  # ── Flask Application ───────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      FLASK_ENV:        production
+      DATABASE_URL:     postgresql://${POSTGRES_USER:-crisissignal}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-crisissignal}
+      SECRET_KEY:       ${SECRET_KEY}            # Required — must be set
+      SENTRY_DSN:       ${SENTRY_DSN:-}          # Optional — error tracking
+      SEED_ADMIN_PASSWORD:    ${SEED_ADMIN_PASSWORD:-}
+      SEED_SECURITY_PASSWORD: ${SEED_SECURITY_PASSWORD:-}
+      SEED_USER_PASSWORD:     ${SEED_USER_PASSWORD:-}
+    volumes:
+      # Persist uploaded evidence photos across container restarts
+      - uploads_data:/app/app/static/uploads/evidence
+    expose:
+      - "8000"
+    networks:
+      - internal
+      - external
+    command: >
+      sh -c "
+        flask db upgrade &&
+        flask seed &&
+        gunicorn
+          --worker-class geventwebsocket.handler.WebSocketHandler
+          --workers 1
+          --bind 0.0.0.0:8000
+          --timeout 120
+          --access-logfile -
+          --error-logfile -
+          run:app
+      "
+
+  # ── Nginx Reverse Proxy (HTTPS termination) ─────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro      # Mount TLS certs here
+    networks:
+      - external
+
+volumes:
+  postgres_data:
+  uploads_data:
+
+networks:
+  internal:
+    driver: bridge
+    internal: true    # DB not reachable from outside
+  external:
+    driver: bridge

@@ -1,0 +1,457 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — CrisisSignal AI{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<style>
+  /* Phase 3: Reputation badge tier colors and styles — class-based (no inline Jinja expressions) */
+  .badge-card-gold   { border-color: rgba(255,200,0,0.4) !important; background: rgba(255,200,0,0.05) !important; }
+  .badge-card-silver { border-color: rgba(180,180,200,0.4) !important; }
+  .badge-card-danger { border-color: rgba(255,45,85,0.4) !important; background: rgba(255,45,85,0.05) !important; }
+
+  .badge-icon-gold    { background: rgba(255,200,0,0.15) !important; color: #ffc800 !important; }
+  .badge-icon-silver  { background: rgba(180,180,200,0.15) !important; color: #b4b4c8 !important; }
+  .badge-icon-bronze  { background: rgba(205,127,50,0.15) !important; color: #cd7f32 !important; }
+  .badge-icon-danger  { background: rgba(255,45,85,0.15) !important; color: var(--color-critical) !important; }
+  .badge-icon-warning { background: rgba(255,150,0,0.15) !important; color: #ff9600 !important; }
+
+  .badge-tier-gold    { font-size: 0.95rem; color: #ffc800; }
+  .badge-tier-silver  { font-size: 0.95rem; color: #b4b4c8; }
+  .badge-tier-bronze  { font-size: 0.95rem; color: #cd7f32; }
+  .badge-tier-danger  { font-size: 0.95rem; color: var(--color-critical); }
+  .badge-tier-warning { font-size: 0.95rem; color: #ff9600; }
+
+  /* ── How It Works Button Glow ── */
+  @keyframes howGlow {
+    0%,100% { box-shadow: 0 0 0 0 rgba(139,92,246,0), 0 4px 16px rgba(139,92,246,0.3); }
+    50%      { box-shadow: 0 0 0 8px rgba(139,92,246,0.15), 0 4px 24px rgba(139,92,246,0.6); }
+  }
+  .btn-how {
+    animation: howGlow 2.2s ease-in-out infinite;
+    border: 1px solid rgba(139,92,246,0.6) !important;
+    color: #a78bfa !important;
+    background: rgba(139,92,246,0.08) !important;
+    border-radius: 12px;
+    padding: 14px 24px;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.2s;
+  }
+  .btn-how:hover { background: rgba(139,92,246,0.18) !important; animation: none; }
+
+  /* ── How It Works Modal ── */
+  .hiw-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,0.85);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.3s ease;
+    backdrop-filter: blur(8px);
+    padding: 1rem;
+  }
+  .hiw-overlay.open { opacity: 1; pointer-events: all; }
+  .hiw-modal {
+    background: #111318;
+    border: 1px solid #1E293B;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 680px;
+    max-height: 90vh;
+    overflow-y: auto;
+    transform: translateY(30px) scale(0.97);
+    transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    padding: 0;
+  }
+  .hiw-overlay.open .hiw-modal { transform: translateY(0) scale(1); }
+  .hiw-header {
+    background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(0,0,0,0));
+    padding: 2rem 2rem 1.5rem;
+    border-bottom: 1px solid #1E293B;
+    display: flex; justify-content: space-between; align-items: flex-start;
+  }
+  .hiw-title { font-size: 1.4rem; font-weight: 800; color: #E5E7EB; margin: 0; }
+  .hiw-sub   { font-size: 0.85rem; color: #94A3B8; margin-top: 4px; }
+  .hiw-close {
+    background: rgba(255,255,255,0.06); border: none; border-radius: 50%;
+    width: 36px; height: 36px; cursor: pointer; color: #94A3B8;
+    font-size: 1.2rem; display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s; flex-shrink: 0;
+  }
+  .hiw-close:hover { background: rgba(255,255,255,0.12); color: #E5E7EB; }
+  .hiw-body { padding: 1.5rem 2rem 2rem; }
+
+  /* Step cards */
+  .hiw-step {
+    display: flex; gap: 1rem; align-items: flex-start;
+    padding: 1rem;
+    border-radius: 12px;
+    margin-bottom: 0.75rem;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid transparent;
+    opacity: 0; transform: translateX(-16px);
+    transition: opacity 0.4s ease, transform 0.4s ease, border-color 0.2s;
+  }
+  .hiw-step.visible { opacity: 1; transform: translateX(0); }
+  .hiw-step:hover { border-color: rgba(139,92,246,0.25); background: rgba(139,92,246,0.04); }
+  .hiw-icon {
+    font-size: 1.8rem; flex-shrink: 0;
+    width: 52px; height: 52px;
+    background: rgba(139,92,246,0.1);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .hiw-step-title { font-size: 0.95rem; font-weight: 700; color: #E5E7EB; margin-bottom: 4px; }
+  .hiw-step-desc  { font-size: 0.82rem; color: #94A3B8; line-height: 1.6; }
+  .hiw-step-desc strong { color: #c4b5fd; }
+
+  /* Progress connector */
+  .hiw-connector {
+    width: 2px; height: 20px;
+    background: linear-gradient(to bottom, rgba(139,92,246,0.4), rgba(139,92,246,0.1));
+    margin-left: 26px; margin-bottom: 0;
+  }
+
+  /* Footer note */
+  .hiw-footer {
+    background: rgba(139,92,246,0.06);
+    border-top: 1px solid #1E293B;
+    padding: 1rem 2rem;
+    text-align: center;
+    font-size: 0.8rem;
+    color: #94A3B8;
+  }
+  .hiw-footer strong { color: #a78bfa; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(0,0,0,0.2)); padding: 3.5rem; border-radius: var(--radius-xl); border: 1px solid var(--border-glass); position: relative; overflow: hidden; margin-bottom: 3rem; backdrop-filter: blur(20px); box-shadow: var(--shadow-xl);">
+    <!-- Glowing Orb Background -->
+    <div style="position: absolute; top: -20%; right: -5%; width: 400px; height: 400px; background: radial-gradient(circle, var(--accent) 0%, transparent 70%); opacity: 0.15; filter: blur(50px); border-radius: 50%; pointer-events: none;"></div>
+    
+    <div class="page-title-group" style="position: relative; z-index: 1;">
+        <div style="display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.03); padding: 6px 14px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 1.5rem; flex-wrap: wrap;">
+            <div style="width: 8px; height: 8px; background: var(--color-success); border-radius: 50%; box-shadow: 0 0 12px var(--color-success);"></div>
+            <span style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-secondary);">
+                Community Sync: {{ current_user.community.name if current_user.community else 'Global Network' }}
+            </span>
+            {% if current_user.community %}
+            <div style="margin-left: 8px; display: inline-flex; align-items: center; gap: 6px; background: rgba(78, 205, 196, 0.1); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--accent); cursor: pointer; transition: all 0.2s;" onclick="navigator.clipboard.writeText('{{ current_user.community.join_code }}'); const msg = document.getElementById('copy-msg'); msg.style.opacity = '1'; setTimeout(()=>msg.style.opacity='0', 2000);" title="Click to copy join code">
+                <i data-lucide="key" style="width: 12px; height: 12px; color: var(--accent);"></i>
+                <span style="font-size: 0.75rem; font-weight: bold; color: var(--accent); letter-spacing: 0.1em;">CODE: {{ current_user.community.join_code }}</span>
+                <i data-lucide="copy" style="width: 12px; height: 12px; color: var(--text-muted);"></i>
+            </div>
+            <span id="copy-msg" style="font-size: 0.7rem; color: var(--color-success); opacity: 0; transition: opacity 0.3s; margin-left: 4px;">Copied!</span>
+            {% endif %}
+        </div>
+        <h1 class="page-title" style="font-size: 3rem; font-weight: 800; letter-spacing: -0.04em; margin-bottom: 0.5rem; text-shadow: 0 4px 24px rgba(0,0,0,0.5);">
+            Welcome back, <span style="background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.3));">{{ current_user.name or 'Citizen' }}</span>
+        </h1>
+        <p class="page-subtitle" style="font-size: 1.15rem; color: var(--text-secondary); max-width: 600px; line-height: 1.6;">Track live incidents in your community and help verify critical emergency reports.</p>
+    </div>
+    
+    <div style="position: relative; z-index: 1; margin-top: 2.5rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+        <a href="{{ url_for('alerts.report') }}" class="btn btn-primary btn-lg" style="box-shadow: 0 8px 32px rgba(139, 92, 246, 0.4); border-radius: 12px; padding: 14px 28px; font-weight: 600; font-size: 1rem; letter-spacing: 0.02em;">
+            <i data-lucide="plus-circle" style="width: 20px; height: 20px;"></i>
+            <span>Report Incident</span>
+        </a>
+        <a href="{{ url_for('admin.security_view') }}" class="btn btn-ghost btn-lg" style="border-radius: 12px; padding: 14px 24px; font-weight: 500;">
+            <i data-lucide="map" style="width: 18px; height: 18px;"></i>
+            <span>Security Map</span>
+        </a>
+        <button class="btn-how" onclick="openHIW()" id="btn-how-it-works">
+            <span style="font-size:1.1rem;">💡</span>
+            How it works?
+        </button>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════ HOW IT WORKS MODAL ══ -->
+<div class="hiw-overlay" id="hiw-overlay" onclick="closeHIWOutside(event)">
+  <div class="hiw-modal" id="hiw-modal">
+
+    <div class="hiw-header">
+      <div>
+        <p class="hiw-title">🚨 How CrisisSignal Works</p>
+        <p class="hiw-sub">A simple guide — from reporting to resolution in 5 steps</p>
+      </div>
+      <button class="hiw-close" onclick="closeHIW()">✕</button>
+    </div>
+
+    <div class="hiw-body">
+
+      <div class="hiw-step" id="hiw-s1">
+        <div class="hiw-icon">🏢</div>
+        <div>
+          <div class="hiw-step-title">Step 1 — Join Your Building</div>
+          <div class="hiw-step-desc">
+            Every building or campus is a <strong>Community</strong>. When you register, you either
+            <strong>create</strong> a new community (you become the admin) or <strong>join</strong> an existing one
+            using a 6-letter code. Users only see alerts from their own community — like a private group.
+          </div>
+        </div>
+      </div>
+      <div class="hiw-connector"></div>
+
+      <div class="hiw-step" id="hiw-s2">
+        <div class="hiw-icon">📝</div>
+        <div>
+          <div class="hiw-step-title">Step 2 — Report an Incident</div>
+          <div class="hiw-step-desc">
+            See something wrong? Click <strong>Report Incident</strong>. Write what happened in plain words.
+            Add the location and an optional photo. Hit Submit — the <strong>AI reads your message in under 1 second</strong>
+            and automatically decides the type (fire, medical, theft...), severity (1–10), and how confident it is.
+          </div>
+        </div>
+      </div>
+      <div class="hiw-connector"></div>
+
+      <div class="hiw-step" id="hiw-s3">
+        <div class="hiw-icon">👥</div>
+        <div>
+          <div class="hiw-step-title">Step 3 — Your Community Verifies It</div>
+          <div class="hiw-step-desc">
+            Other members in your building see the alert under <strong>"Awaiting Verification"</strong>.
+            They click ✅ <strong>Confirm</strong> ("Yes, I see it too") or ❌ <strong>Reject</strong> ("Nothing here, false alarm").
+            <strong>Trusted users' votes count more</strong> — a security guard's confirmation carries more weight than a random newcomer.
+          </div>
+        </div>
+      </div>
+      <div class="hiw-connector"></div>
+
+      <div class="hiw-step" id="hiw-s4">
+        <div class="hiw-icon">📈</div>
+        <div>
+          <div class="hiw-step-title">Step 4 — The Alert Evolves Automatically</div>
+          <div class="hiw-step-desc">
+            As votes arrive, the <strong>Confidence Score</strong> updates live. The alert moves through stages:<br>
+            🔵 <strong>New</strong> → 🟡 <strong>Verifying</strong> → 🟢 <strong>Verified</strong> → 🔴 <strong>Critical</strong> → ✔️ <strong>Resolved</strong><br>
+            If confidence + severity are both very high, the system <strong>auto-escalates to Critical</strong> — no admin action needed.
+          </div>
+        </div>
+      </div>
+      <div class="hiw-connector"></div>
+
+      <div class="hiw-step" id="hiw-s5">
+        <div class="hiw-icon">🛡️</div>
+        <div>
+          <div class="hiw-step-title">Step 5 — Admin Acts, System Learns</div>
+          <div class="hiw-step-desc">
+            The Building Admin sees all alerts live — sorted by priority. They can <strong>Escalate, Resolve, or Assign</strong> a security guard.
+            After resolution, your <strong>Reliability Score</strong> updates:
+            accurate reporters and voters gain trust, pranksters lose influence over time.
+            Everything is recorded in an <strong>Audit Log</strong> — nothing is ever lost.
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="hiw-footer">
+      🚀 <strong>Your first step:</strong> Click <strong>Report Incident</strong> above to submit your first alert!
+    </div>
+  </div>
+</div>
+
+<!-- User Stats -->
+<div class="stats-grid">
+    <div class="stat-card animate-fade-in-up stagger-1">
+        <div class="stat-icon stat-icon-blue">
+            <i data-lucide="file-text"></i>
+        </div>
+        <div class="stat-info">
+            <span class="stat-value" data-counter="{{ my_alerts | length }}">{{ my_alerts | length }}</span>
+            <span class="stat-label">My Reports</span>
+        </div>
+    </div>
+    <div class="stat-card animate-fade-in-up stagger-2">
+        <div class="stat-icon stat-icon-green">
+            <i data-lucide="trending-up"></i>
+        </div>
+        <div class="stat-info">
+            <span class="stat-value">{{ "%.0f" | format((current_user.reliability_score or 0) * 100) }}%</span>
+            <span class="stat-label">Reliability Score</span>
+        </div>
+    </div>
+    <div class="stat-card animate-fade-in-up stagger-3">
+        <div class="stat-icon stat-icon-orange">
+            <i data-lucide="shield-check"></i>
+        </div>
+        <div class="stat-info">
+            <span class="stat-value" data-counter="{{ verifiable_alerts | length }}">{{ verifiable_alerts | length }}</span>
+            <span class="stat-label">Awaiting Verification</span>
+        </div>
+    </div>
+    <!-- Phase 3: Reputation Badge Card — all styles via CSS classes, no inline Jinja in style= -->
+    {%- set tier = badge_tier or 'warning' %}
+    {%- set icon_name = 'award' if tier == 'gold' else ('alert-octagon' if tier == 'danger' else 'star') %}
+    <div class="stat-card animate-fade-in-up stagger-4 badge-card-{{ tier }}">
+        <div class="stat-icon badge-icon-{{ tier }}">
+            <i data-lucide="{{ icon_name }}"></i>
+        </div>
+        <div class="stat-info">
+            <span class="stat-value badge-tier-{{ tier }}">
+                {{ badge_label or 'Active Member' }}
+            </span>
+            <span class="stat-label">Reputation Tier</span>
+        </div>
+    </div>
+</div>
+
+
+<!-- My Alerts Section -->
+<div class="section">
+    <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+        <h2 class="section-title" style="margin-bottom: 0;">
+            <i data-lucide="bell"></i>
+            My Submitted Alerts
+        </h2>
+        <a href="{{ url_for('alerts.report') }}" class="btn btn-primary btn-sm" style="border-radius: 20px;">
+            <i data-lucide="plus"></i> New Report
+        </a>
+    </div>
+    {% if my_alerts %}
+    <div class="alerts-grid">
+        {% for alert in my_alerts %}
+        <div class="alert-card status-{{ alert.status or 'unknown' }} animate-fade-in-up stagger-{{ loop.index }}" data-alert-id="{{ alert.id }}">
+            <div class="alert-card-header">
+                <span class="status-badge badge-{{ alert.status or 'new' }}">{{ (alert.status or 'new') | replace('_', ' ') | upper }}</span>
+                <span class="alert-type">{{ (alert.type or 'general') | upper }}</span>
+            </div>
+            <p class="alert-message">{{ (alert.message or '')[:120] }}{% if alert.message and alert.message|length > 120 %}...{% endif %}</p>
+            <div class="alert-meta">
+                <span class="meta-item">
+                    <i data-lucide="map-pin"></i>
+                    {{ alert.location or 'Unknown' }}
+                </span>
+                <span class="meta-item">
+                    <i data-lucide="activity"></i>
+                    Sev: {{ alert.severity or 0 }}/10
+                </span>
+                <span class="meta-item">
+                    <i data-lucide="bar-chart"></i>
+                    {{ "%.0f" | format((alert.confidence or 0) * 100) }}%
+                </span>
+            </div>
+            <a href="{{ url_for('alerts.detail', alert_id=alert.id) }}" class="btn btn-ghost btn-sm">
+                View Details →
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i data-lucide="inbox"></i>
+        <h3>No alerts yet</h3>
+        <p>You haven't submitted any incident reports.</p>
+        <a href="{{ url_for('alerts.report') }}" class="btn btn-primary">Report an Incident</a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Verify Alerts Section -->
+<div class="section">
+    <h2 class="section-title">
+        <i data-lucide="check-circle"></i>
+        Alerts Awaiting Your Verification
+    </h2>
+    {% if verifiable_alerts %}
+    <div class="alerts-grid">
+        {% for alert in verifiable_alerts %}
+        <div class="alert-card status-{{ alert.status or 'unknown' }} animate-fade-in-up" data-alert-id="{{ alert.id }}" id="verify-card-{{ alert.id }}">
+            <div class="alert-card-header">
+                <span class="status-badge badge-{{ alert.status or 'new' }}">{{ (alert.status or 'new') | replace('_', ' ') | upper }}</span>
+                <span class="alert-type">{{ (alert.type or 'general') | upper }}</span>
+            </div>
+            <p class="alert-message">{{ (alert.message or '')[:120] }}{% if alert.message and alert.message|length > 120 %}...{% endif %}</p>
+            <div class="alert-meta">
+                <span class="meta-item">
+                    <i data-lucide="map-pin"></i>
+                    {{ alert.location or 'Unknown' }}
+                </span>
+                <span class="meta-item">
+                    <i data-lucide="bar-chart"></i>
+                    {{ "%.0f" | format((alert.confidence or 0) * 100) }}%
+                </span>
+            </div>
+
+            {% if alert.id in (voted_alert_ids or []) %}
+            <div class="voted-badge">
+                <i data-lucide="check"></i>
+                <span>You've already voted</span>
+            </div>
+            {% else %}
+            <div class="vote-actions" id="vote-actions-{{ alert.id }}">
+                <button class="btn btn-confirm btn-sm" onclick="castVote(Number('{{ alert.id }}'), 'confirm')" id="vote-confirm-{{ alert.id }}">
+                    <i data-lucide="check"></i> Confirm
+                </button>
+                <button class="btn btn-reject btn-sm" onclick="castVote(Number('{{ alert.id }}'), 'reject')" id="vote-reject-{{ alert.id }}">
+                    <i data-lucide="x"></i> Reject
+                </button>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i data-lucide="check-circle"></i>
+        <h3>All caught up!</h3>
+        <p>No alerts need your verification right now.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/websocket.js') }}"></script>
+<script src="{{ url_for('static', filename='js/voting.js') }}"></script>
+<script>
+  // ── How It Works Modal ──────────────────────────────────────
+  function openHIW() {
+    const overlay = document.getElementById('hiw-overlay');
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    // Stagger-animate each step card
+    const steps = overlay.querySelectorAll('.hiw-step');
+    steps.forEach((s, i) => {
+      s.classList.remove('visible');
+      setTimeout(() => s.classList.add('visible'), 120 + i * 130);
+    });
+
+    // Stop the glow once user has seen it
+    const btn = document.getElementById('btn-how-it-works');
+    if (btn) btn.style.animation = 'none';
+    localStorage.setItem('cs_hiw_seen', '1');
+  }
+
+  function closeHIW() {
+    const overlay = document.getElementById('hiw-overlay');
+    overlay.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function closeHIWOutside(e) {
+    if (e.target === document.getElementById('hiw-overlay')) closeHIW();
+  }
+
+  // Close with Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeHIW();
+  });
+
+  // Auto-open for first-time users (no alerts yet + never seen the modal)
+  window.addEventListener('DOMContentLoaded', () => {
+    {%- set _has_reports = my_alerts | length > 0 %}
+    const hasReports  = {{ 'true' if _has_reports else 'false' }};
+    const alreadySeen = localStorage.getItem('cs_hiw_seen');
+    if (!hasReports && !alreadySeen) {
+      setTimeout(() => openHIW(), 800);  // slight delay so page loads first
+    }
+  });
+</script>
+{% endblock %}

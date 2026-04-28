@@ -1,0 +1,216 @@
+/* ════════════════════════════════════════════════════════════
+   CrisisSignal AI — Dark Intelligence Overrides v4.0
+   Loaded after all base CSS files. Applies the exact spec
+   values without modifying the base files destructively.
+   ════════════════════════════════════════════════════════════ */
+
+/* ── Nav: tighter, muted-default, crisis-red on active ─────── */
+.nav-item {
+    color: var(--text-muted);
+    font-size: 0.8125rem;   /* 13px */
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 5px;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.nav-item svg {
+    width: 15px;
+    height: 15px;
+}
+
+.nav-item:hover {
+    color: var(--text-secondary);
+    background: rgba(255,255,255,0.03);
+}
+
+.nav-item.active {
+    color: var(--text-primary);
+    background: rgba(239,68,68,0.07);
+}
+
+/* Left edge indicator — spec */
+.nav-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 20%; bottom: 20%;
+    width: 2px;
+    transform: none;
+    height: auto;
+    background: var(--color-critical);
+    border-radius: 0 2px 2px 0;
+    box-shadow: 0 0 8px rgba(239,68,68,0.5);
+}
+
+.nav-item.active svg {
+    color: var(--color-critical);
+}
+
+/* ── Nav section label: 0.12em spec ─────────────────────────── */
+.nav-divider {
+    padding: 16px 12px 4px;
+}
+
+.nav-divider span {
+    font-size: 0.6875rem;   /* 11px */
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+/* ── Sidebar: spec bg ────────────────────────────────────────── */
+.sidebar {
+    background: #0B0E13;
+    border-right-color: #1E293B;
+}
+
+/* ── Section title: label style ─────────────────────────────── */
+.section-title {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ── Stat cards: metric value typography ─────────────────────── */
+.stat-value {
+    font-size: 1.625rem;   /* 26px spec */
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    color: var(--text-primary);
+}
+
+.stat-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+/* ── Alert cards: left colored border ───────────────────────── */
+.alert-row,
+.alert-card {
+    border-left: 2px solid transparent;
+    transition: background 0.2s ease,
+                border-color 0.2s ease,
+                transform 0.2s ease;
+}
+
+.alert-row:hover,
+.alert-card:hover {
+    background: #1a1f28 !important;
+    transform: none;   /* no lift — spec: subtle bg change only */
+}
+
+/* Status-specific left border colors */
+.alert-row.status-critical,
+.alert-card.status-critical    { border-left-color: var(--color-critical); }
+.alert-row.status-verified,
+.alert-card.status-verified    { border-left-color: var(--color-verified); }
+.alert-row.status-verifying,
+.alert-card.status-verifying   { border-left-color: var(--color-verifying); }
+.alert-row.status-new,
+.alert-card.status-new         { border-left-color: var(--color-new); }
+.alert-row.status-awaiting_review,
+.alert-card.status-awaiting_review { border-left-color: var(--color-awaiting); }
+.alert-row.status-resolved,
+.alert-card.status-resolved    { border-left-color: var(--color-resolved); }
+.alert-row.status-rejected,
+.alert-card.status-rejected    { border-left-color: var(--color-rejected); }
+
+/* ── Vote buttons: color reveals on hover only ─────────────── */
+.btn-confirm {
+    background: transparent !important;
+    color: var(--text-muted) !important;
+    border: 1px solid var(--border-medium) !important;
+    transition: all 0.2s ease;
+}
+
+.btn-confirm:hover {
+    background: var(--color-confirm-bg) !important;
+    color: var(--color-confirm) !important;
+    border-color: rgba(34,197,94,0.35) !important;
+}
+
+.btn-reject {
+    background: transparent !important;
+    color: var(--text-muted) !important;
+    border: 1px solid var(--border-medium) !important;
+    transition: all 0.2s ease;
+}
+
+.btn-reject:hover {
+    background: var(--color-reject-bg) !important;
+    color: var(--color-reject) !important;
+    border-color: rgba(239,68,68,0.35) !important;
+}
+
+/* ── Buttons: 1.03 scale on hover ───────────────────────────── */
+.btn {
+    transition: transform 0.15s ease,
+                box-shadow 0.15s ease,
+                background 0.15s ease,
+                color 0.15s ease,
+                border-color 0.15s ease !important;
+}
+
+.btn:hover {
+    transform: scale(1.02);
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+/* ── Confidence bar: premium fill animation ──────────────────── */
+.confidence-fill {
+    transition: width 0.8s var(--ease-premium);
+}
+
+/* ── Status badges: semantic glow ───────────────────────────── */
+.badge-critical  { box-shadow: 0 0 8px rgba(239,68,68,0.25); }
+.badge-verified  { box-shadow: 0 0 8px rgba(34,197,94,0.20); }
+.badge-verifying { box-shadow: 0 0 8px rgba(245,158,11,0.20); }
+
+/* ── Topbar scroll blur (JS adds .scrolled to body) ─────────── */
+body.scrolled .topbar {
+    backdrop-filter: blur(12px) saturate(140%);
+    background: rgba(10,12,15,0.85);
+    border-bottom: 1px solid var(--border-card);
+}
+
+/* ── IntersectionObserver reveal (JS adds .visible) ─────────── */
+.reveal {
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ── Pulse ring keyframe (critical dot) ─────────────────────── */
+@keyframes pulse-ring {
+    0%   { transform: scale(1); opacity: 0.6; }
+    100% { transform: scale(2.4); opacity: 0; }
+}
+
+@keyframes confidence-fill-in {
+    from { width: 0; }
+}
+
+/* ── Stat counter shimmer (while counting up) ───────────────── */
+.counting {
+    opacity: 0.7;
+}

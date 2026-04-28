@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 — CrisisSignal AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/variables.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+        }
+        .error-container { max-width: 480px; padding: 48px 32px; }
+        .error-code {
+            font-family: var(--font-mono);
+            font-size: 6rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #8b7aff 0%, #ff2d55 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1;
+            margin-bottom: 16px;
+        }
+        .error-title { font-size: 1.5rem; font-weight: 600; margin-bottom: 12px; }
+        .error-message { color: var(--text-secondary); margin-bottom: 32px; line-height: 1.6; }
+        .error-link {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 12px 24px; background: var(--accent-gradient);
+            color: white; border-radius: 8px; font-weight: 500;
+            text-decoration: none; transition: box-shadow 0.2s;
+        }
+        .error-link:hover { box-shadow: 0 4px 20px rgba(139, 122, 255, 0.4); color: white; }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-code">404</div>
+        <h1 class="error-title">Signal Not Found</h1>
+        <p class="error-message">The page you're looking for doesn't exist or has been moved.</p>
+        <a href="/" class="error-link">← Return to Dashboard</a>
+    </div>
+</body>
+</html>

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Audit Log — CrisisSignal AI{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-title-group">
+        <h1 class="page-title">Audit Trail</h1>
+        <p class="page-subtitle">Immutable record of all system state changes</p>
+    </div>
+</div>
+
+<div class="section">
+    {% if logs %}
+    <div class="audit-list">
+        {% for log in logs %}
+        <div class="audit-entry animate-fade-in-up" {{ ('style="animation-delay: ' ~ (loop.index * 0.03) ~ 's;"') | safe }}>
+            <span class="audit-time">{{ log.logged_at.strftime('%H:%M:%S') if log.logged_at and log.logged_at.strftime is defined else (log.logged_at if log.logged_at else 'Unknown') }}</span>
+            <span class="audit-action">{{ log.action or 'System Event' }}</span>
+            <span class="audit-detail" title="{{ log.detail or '' }}">{{ log.detail or '—' }}</span>
+            <span class="audit-actor">
+                {% if log.actor %}
+                    {{ log.actor.name if log.actor.name else ('User #' ~ log.user_id if log.user_id else 'Internal Actor') }}
+                {% else %}
+                    <span class="text-muted">System</span>
+                {% endif %}
+                · Alert #{{ log.alert_id | default('N/A') }}
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i data-lucide="file-text"></i>
+        <h3>No events yet</h3>
+        <p>The audit trail will populate as alerts are created and processed.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

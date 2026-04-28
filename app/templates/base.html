@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="CrisisSignal AI — AI-powered crisis intelligence platform with real-time crowd verification">
+    <meta name="theme-color" content="#08081a">
+    <title>{% block title %}CrisisSignal AI{% endblock %}</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Core CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/variables.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/animations.css') }}">
+    <!-- Phase 4 UI: Dark Intelligence premium overrides (loads last = highest specificity) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-intelligence.css') }}">
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Mobile Sidebar Toggle -->
+    <button class="mobile-menu-toggle" id="sidebar-toggle" onclick="toggleSidebar()" aria-label="Toggle navigation menu">
+        <i data-lucide="menu"></i>
+    </button>
+
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar" id="sidebar" aria-label="Main navigation">
+        <div class="sidebar-header">
+            <div class="logo-container">
+                <div class="logo-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+                    </svg>
+                </div>
+                <div class="logo-text">
+                    <span class="logo-title">CrisisSignal</span>
+                    <span class="logo-subtitle">AI Intelligence</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar-nav">
+            {% if current_user.is_admin %}
+            <!-- Admin Nav -->
+            <div class="nav-divider"><span>Command</span></div>
+            <a href="{{ url_for('admin.dashboard') }}" class="nav-item {{ 'active' if request.endpoint == 'admin.dashboard' }}" id="nav-dashboard">
+                <i data-lucide="layout-dashboard"></i>
+                <span>Command Center</span>
+            </a>
+            <a href="{{ url_for('admin.analytics') }}" class="nav-item {{ 'active' if request.endpoint == 'admin.analytics' }}" id="nav-analytics">
+                <i data-lucide="bar-chart-3"></i>
+                <span>Analytics</span>
+            </a>
+            <a href="{{ url_for('admin.security_view') }}" class="nav-item {{ 'active' if request.endpoint == 'admin.security_view' }}" id="nav-security">
+                <i data-lucide="map"></i>
+                <span>Security Map</span>
+            </a>
+
+            <div class="nav-divider"><span>Manage</span></div>
+            <a href="{{ url_for('admin.manage_users') }}" class="nav-item {{ 'active' if request.endpoint == 'admin.manage_users' }}" id="nav-users">
+                <i data-lucide="users"></i>
+                <span>Users</span>
+            </a>
+            <a href="{{ url_for('admin.audit_log') }}" class="nav-item {{ 'active' if request.endpoint == 'admin.audit_log' }}" id="nav-audit">
+                <i data-lucide="scroll-text"></i>
+                <span>Audit Trail</span>
+            </a>
+
+            <div class="nav-divider"><span>Demo</span></div>
+            <a href="{{ url_for('demo.scenarios') }}" class="nav-item {{ 'active' if request.endpoint == 'demo.scenarios' }}" id="nav-demo">
+                <i data-lucide="play-circle"></i>
+                <span>Demo Mode</span>
+            </a>
+
+            {% else %}
+            <!-- User Nav -->
+            <div class="nav-divider"><span>Dashboard</span></div>
+            <a href="{{ url_for('alerts.user_dashboard') }}" class="nav-item {{ 'active' if request.endpoint == 'alerts.user_dashboard' }}" id="nav-my-dashboard">
+                <i data-lucide="layout-dashboard"></i>
+                <span>My Dashboard</span>
+            </a>
+            <a href="{{ url_for('alerts.report') }}" class="nav-item {{ 'active' if request.endpoint == 'alerts.report' }}" id="nav-report">
+                <i data-lucide="alert-circle"></i>
+                <span>Report Incident</span>
+            </a>
+            <a href="{{ url_for('admin.security_view') }}" class="nav-item {{ 'active' if request.endpoint == 'admin.security_view' }}" id="nav-security-user">
+                <i data-lucide="map"></i>
+                <span>Security Map</span>
+            </a>
+            {% endif %}
+        </div>
+
+        <div class="sidebar-footer">
+            <!-- WebSocket Connection Indicator -->
+            <div class="ws-status" id="ws-indicator" title="Real-time: Connecting...">
+                <span class="ws-dot"></span>
+                <span class="ws-label">Live</span>
+            </div>
+
+            <div class="user-info">
+                <div class="user-avatar">{{ current_user.name[0] | upper if current_user.name and current_user.name|length > 0 else '?' }}</div>
+                <div class="user-details">
+                    <span class="user-name">{{ current_user.name or 'User' }}</span>
+                    <span class="user-role">{{ current_user.role or 'user' }}</span>
+                </div>
+            </div>
+            <a href="{{ url_for('auth.logout') }}" class="nav-item logout-btn" id="nav-logout">
+                <i data-lucide="log-out"></i>
+                <span>Sign Out</span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-container" id="flash-container">
+        {% for category, message in messages %}
+        <div class="flash-message flash-{{ category }}" onclick="this.remove()">
+            {% if category == 'success' %}
+            <i data-lucide="check-circle"></i>
+            {% elif category == 'error' %}
+            <i data-lucide="alert-circle"></i>
+            {% elif category == 'warning' %}
+            <i data-lucide="alert-triangle"></i>
+            {% else %}
+            <i data-lucide="info"></i>
+            {% endif %}
+            <span>{{ message }}</span>
+            <button class="flash-close" onclick="event.stopPropagation(); this.parentElement.remove();" aria-label="Close notification">
+                <i data-lucide="x" style="width:14px;height:14px;"></i>
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <!-- Core JS -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <!-- Phase 4 UI: Premium micro-interactions engine -->
+    <script src="{{ url_for('static', filename='js/dark-intelligence.js') }}"></script>
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Auto-dismiss flash messages after 5 seconds
+        document.querySelectorAll('.flash-message').forEach(flash => {
+            setTimeout(() => {
+                flash.style.opacity = '0';
+                flash.style.transform = 'translateX(30px)';
+                flash.style.transition = 'all 0.3s ease';
+                setTimeout(() => flash.remove(), 300);
+            }, 5000);
+        });
+
+        // Mobile sidebar toggle
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

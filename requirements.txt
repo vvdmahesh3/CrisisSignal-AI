@@ -1,0 +1,37 @@
+# ── CrisisSignal AI — Production Dependencies ────────────────
+# Core
+flask==3.1.0
+flask-sqlalchemy==3.1.1
+flask-login==0.6.3
+flask-socketio==5.5.1
+flask-migrate==4.1.0
+
+# Utilities
+python-dotenv==1.1.0
+werkzeug==3.1.3
+
+# Security & Rate Limiting (Phase 0 — added)
+flask-limiter==3.5.0
+
+# CSRF Protection (Phase 1 — added)
+flask-wtf==1.2.1
+
+# ML Classifier (Phase 2 — added)
+scikit-learn==1.5.2
+
+# Image Validation for Evidence Upload (Phase 3 — added)
+Pillow==11.2.1
+
+# WebSocket transport
+# NOTE: eventlet removed — incompatible with Python 3.13+
+# socketio runs in threading mode (see extensions.py)
+# For production: use gunicorn with geventwebsocket worker
+
+# Production server (Phase 4)
+gunicorn==23.0.0
+
+# PostgreSQL driver (Phase 4 — install only in production)
+# psycopg2-binary==2.9.10
+
+# Error tracking (Phase 4 — install only if SENTRY_DSN is set)
+# sentry-sdk[flask]==2.22.0

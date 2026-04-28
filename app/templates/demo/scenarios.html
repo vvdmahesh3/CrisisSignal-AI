@@ -1,0 +1,411 @@
+{% extends "base.html" %}
+{% block title %}Demo Mode — CrisisSignal AI{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<style>
+  /* ── Layout ── */
+  .demo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 1.25rem; margin-bottom: 2rem; }
+
+  /* ── Scenario Cards ── */
+  .scenario-card {
+    background: #121821;
+    border: 1px solid #1E293B;
+    border-radius: 16px;
+    padding: 1.5rem;
+    cursor: pointer;
+    transition: border-color 0.25s, transform 0.2s, box-shadow 0.25s;
+    position: relative; overflow: hidden;
+  }
+  .scenario-card::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: var(--card-glow, transparent);
+    opacity: 0; transition: opacity 0.3s;
+    border-radius: inherit; pointer-events: none;
+  }
+  .scenario-card:hover { transform: translateY(-3px); border-color: #a78bfa; box-shadow: 0 8px 32px rgba(139,92,246,0.2); }
+  .scenario-card:hover::before { opacity: 1; }
+  .scenario-card.running { border-color: #f59e0b; box-shadow: 0 0 0 2px rgba(245,158,11,0.2); }
+  .scenario-card.done    { border-color: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,0.15); }
+
+  .card-emoji  { font-size: 2.5rem; margin-bottom: 0.75rem; display: block; }
+  .card-title  { font-size: 1.05rem; font-weight: 800; color: #E5E7EB; margin: 0 0 0.4rem; }
+  .card-tagline{ font-size: 0.75rem; color: #a78bfa; font-style: italic; margin-bottom: 0.75rem; }
+  .card-desc   { font-size: 0.8rem; color: #94A3B8; line-height: 1.55; margin-bottom: 1rem;
+                 display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .card-meta   { display: flex; gap: 1rem; font-size: 0.75rem; color: #64748B; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  .card-meta span { display: flex; align-items: center; gap: 4px; }
+  .card-meta i { width: 12px; height: 12px; }
+
+  .btn-run {
+    width: 100%; padding: 10px 0; border: none; border-radius: 10px;
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    color: #fff; font-size: 0.88rem; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: opacity 0.2s, transform 0.15s;
+  }
+  .btn-run:hover   { opacity: 0.9; transform: scale(1.01); }
+  .btn-run:disabled{ opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* ── Live Feed Panel ── */
+  .live-panel {
+    background: #0d1117;
+    border: 1px solid #1E293B;
+    border-radius: 16px;
+    overflow: hidden;
+    display: none;
+    margin-bottom: 2rem;
+  }
+  .live-panel.active { display: block; }
+
+  .live-panel-header {
+    background: linear-gradient(135deg, rgba(139,92,246,0.1), rgba(0,0,0,0));
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #1E293B;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .live-title { font-size: 0.95rem; font-weight: 700; color: #E5E7EB; display: flex; align-items: center; gap: 8px; }
+  .live-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 8px #22c55e; animation: blink 1.2s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .live-step-counter { font-size: 0.8rem; font-family: monospace; color: #64748B; }
+
+  /* Confidence bar */
+  .conf-row { padding: 1rem 1.5rem; border-bottom: 1px solid #1a2234; }
+  .conf-label { display: flex; justify-content: space-between; font-size: 0.78rem; color: #94A3B8; margin-bottom: 6px; }
+  .conf-track { height: 10px; background: #1E293B; border-radius: 5px; overflow: hidden; }
+  .conf-fill  { height: 100%; border-radius: 5px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1), background 0.5s;
+                background: linear-gradient(90deg, #7c3aed, #a855f7); }
+  .conf-fill.high { background: linear-gradient(90deg, #16a34a, #22c55e); }
+  .conf-fill.critical { background: linear-gradient(90deg, #b91c1c, #ef4444); animation: pulseRed 1s infinite; }
+  @keyframes pulseRed { 0%,100%{opacity:1} 50%{opacity:0.7} }
+
+  /* Vote feed */
+  .vote-feed { padding: 0.75rem 1.5rem; max-height: 260px; overflow-y: auto; }
+  .vote-item {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 0.6rem 0.75rem; border-radius: 8px; margin-bottom: 0.5rem;
+    background: rgba(255,255,255,0.02); border: 1px solid transparent;
+    opacity: 0; transform: translateX(-10px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    font-size: 0.82rem;
+  }
+  .vote-item.in     { opacity: 1; transform: translateX(0); }
+  .vote-item.confirm{ border-color: rgba(34,197,94,0.2);  background: rgba(34,197,94,0.04); }
+  .vote-item.reject { border-color: rgba(239,68,68,0.2);  background: rgba(239,68,68,0.04); }
+  .vote-badge { flex-shrink:0; font-size:1.1rem; }
+  .vote-info  { flex: 1; }
+  .vote-user  { color: #E5E7EB; font-weight: 600; }
+  .vote-detail{ color: #64748B; font-size: 0.75rem; margin-top: 2px; }
+  .vote-conf-change { font-size: 0.75rem; color: #a78bfa; font-weight: 600; margin-left: auto; flex-shrink:0; }
+
+  /* Status badge in panel */
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    transition: all 0.4s ease;
+  }
+  .status-pill.new         { background: rgba(100,116,139,0.15); color: #94A3B8; border: 1px solid #334155; }
+  .status-pill.verifying   { background: rgba(245,158,11,0.12);  color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+  .status-pill.verified    { background: rgba(34,197,94,0.1);    color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+  .status-pill.critical    { background: rgba(239,68,68,0.15);   color: #ef4444; border: 1px solid rgba(239,68,68,0.4); animation: pulseRed 1s infinite; }
+  .status-pill.awaiting_review { background: rgba(100,116,139,0.15); color: #94A3B8; border: 1px solid #334155; }
+  .status-pill.rejected    { background: rgba(100,116,139,0.1);  color: #64748B; border: 1px solid #1E293B; }
+
+  .panel-footer { padding: 0.75rem 1.5rem; border-top: 1px solid #1a2234; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+  .panel-status-row { display: flex; align-items: center; gap: 10px; }
+  .view-alert-btn { font-size: 0.78rem; color: #a78bfa; text-decoration: none; display: flex; align-items: center; gap: 4px; }
+  .view-alert-btn:hover { color: #c4b5fd; }
+
+  /* ── How It Works strip ── */
+  .how-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
+  .how-step { background: rgba(255,255,255,0.02); border: 1px solid #1a2234; border-radius: 10px; padding: 1rem; }
+  .how-step-num { font-size: 1.4rem; margin-bottom: 0.4rem; }
+  .how-step-title { font-size: 0.82rem; font-weight: 700; color: #E5E7EB; margin-bottom: 4px; }
+  .how-step-desc  { font-size: 0.76rem; color: #64748B; line-height: 1.5; }
+
+  .section-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; color: #475569; font-weight: 700; margin-bottom: 0.75rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header" style="margin-bottom: 2rem;">
+    <div class="page-title-group">
+        <h1 class="page-title" style="font-size: 2rem; font-weight: 800; color: #E5E7EB; margin-bottom: 0.25rem;">
+            🎬 Demo Mode
+        </h1>
+        <p class="page-subtitle" style="color: #94A3B8; font-size: 0.9rem;">
+            Run a live scripted incident — watch AI classify it, crowd vote on it, and status escalate in real time.
+        </p>
+    </div>
+    <div class="header-actions">
+        {% if current_user.is_admin %}
+        <button class="btn btn-danger btn-sm" onclick="resetSystem()" id="btn-reset">
+            <i data-lucide="trash-2"></i> Reset System
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+{# Emoji icons + taglines per scenario key #}
+{% set scenario_meta = {
+    'fire':    {'emoji': '🔥', 'outcome': 'CRITICAL'},
+    'medical': {'emoji': '🚑', 'outcome': 'VERIFIED'},
+    'fake':    {'emoji': '🎭', 'outcome': 'REJECTED'},
+} %}
+
+<!-- ── Scenario Cards ── -->
+<p class="section-label">Choose a scenario to run</p>
+<div class="demo-grid">
+    {% for key, scenario in scenarios.items() %}
+    {% set meta = scenario_meta.get(key, {'emoji': '⚠️', 'outcome': '?'}) %}
+    <div class="scenario-card" id="card-{{ key }}" style="--card-glow: radial-gradient(ellipse at top left, rgba(139,92,246,0.08), transparent);">
+        <span class="card-emoji">{{ meta.emoji }}</span>
+        <h3 class="card-title">{{ scenario.name }}</h3>
+        <p class="card-tagline">{{ scenario.tagline | default('Watch this scenario play out live') }}</p>
+        <p class="card-desc">{{ scenario.message }}</p>
+        <div class="card-meta">
+            <span><i data-lucide="map-pin"></i> {{ scenario.location }}</span>
+            <span><i data-lucide="users"></i> {{ scenario.simulated_votes | length }} voters</span>
+            <span><i data-lucide="trending-up"></i> Expected: {{ meta.outcome }}</span>
+        </div>
+        <button class="btn-run" id="run-{{ key }}" onclick="runScenario('{{ key }}')">
+            <i data-lucide="play" style="width:15px;height:15px;"></i> Run This Scenario
+        </button>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- ── Live Feed Panel ── -->
+<div class="live-panel" id="live-panel">
+    <div class="live-panel-header">
+        <div class="live-title">
+            <div class="live-dot"></div>
+            <span id="live-scenario-name">Running scenario...</span>
+        </div>
+        <span class="live-step-counter" id="live-step-counter">0 / 0 votes</span>
+    </div>
+
+    <div class="conf-row">
+        <div class="conf-label">
+            <span>Confidence Score <strong id="conf-pct" style="color:#a78bfa;">0%</strong></span>
+            <div class="panel-status-row">
+                <span class="status-pill new" id="status-pill">NEW</span>
+            </div>
+        </div>
+        <div class="conf-track">
+            <div class="conf-fill" id="conf-fill" style="width:0%"></div>
+        </div>
+    </div>
+
+    <div class="vote-feed" id="vote-feed">
+        <div style="text-align:center; padding: 1.5rem 0; color: #475569; font-size: 0.82rem;">
+            ⏳ Waiting for first community member to vote...
+        </div>
+    </div>
+
+    <div class="panel-footer">
+        <span id="narrator-text" style="font-size: 0.8rem; color: #64748B;">AI is analysing the report...</span>
+        <a href="#" id="view-alert-link" class="view-alert-btn" style="display:none;">
+            View Full Alert <i data-lucide="arrow-right" style="width:12px;height:12px;"></i>
+        </a>
+    </div>
+</div>
+
+<!-- ── How it Works ── -->
+<p class="section-label" style="margin-top: 2rem;">How this demo works</p>
+<div class="how-strip">
+    <div class="how-step">
+        <div class="how-step-num">1️⃣</div>
+        <div class="how-step-title">Alert Created</div>
+        <div class="how-step-desc">A scripted incident is submitted under your account. AI classifies it instantly.</div>
+    </div>
+    <div class="how-step">
+        <div class="how-step-num">2️⃣</div>
+        <div class="how-step-title">AI Scores It</div>
+        <div class="how-step-desc">Severity, confidence, and type are calculated from the text in under 1 second.</div>
+    </div>
+    <div class="how-step">
+        <div class="how-step-num">3️⃣</div>
+        <div class="how-step-title">Community Votes</div>
+        <div class="how-step-desc">5 simulated users with real reliability scores vote over ~10 seconds.</div>
+    </div>
+    <div class="how-step">
+        <div class="how-step-num">4️⃣</div>
+        <div class="how-step-title">Watch It Live</div>
+        <div class="how-step-desc">Confidence bar rises, status changes. Open Admin Dashboard side-by-side to see the full picture.</div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
+<script>
+    const socket = io();
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    let activeAlertId = null;
+
+    /* ─── helpers ─── */
+    function setStatus(statusText) {
+        const pill = document.getElementById('status-pill');
+        pill.textContent = statusText.replace('_', ' ').toUpperCase();
+        pill.className = 'status-pill ' + statusText;
+    }
+
+    function setConfidence(pct) {
+        const fill = document.getElementById('conf-fill');
+        const label = document.getElementById('conf-pct');
+        fill.style.width = pct + '%';
+        label.textContent = Math.round(pct) + '%';
+        fill.className = 'conf-fill' + (pct >= 85 ? ' critical' : pct >= 65 ? ' high' : '');
+    }
+
+    function addVoteItem(voter, vote, reliability, oldConf, newConf) {
+        const feed = document.getElementById('vote-feed');
+
+        // Clear "waiting..." placeholder on first real vote
+        if (feed.querySelector('div[style]')) feed.innerHTML = '';
+
+        const pctOld = (oldConf * 100).toFixed(0);
+        const pctNew = (newConf * 100).toFixed(0);
+        const isConfirm = vote === 'confirm';
+        const arrow = newConf > oldConf ? '▲' : (newConf < oldConf ? '▼' : '─');
+        const color  = newConf > oldConf ? '#22c55e' : (newConf < oldConf ? '#ef4444' : '#94A3B8');
+
+        const el = document.createElement('div');
+        el.className = `vote-item ${vote}`;
+        el.innerHTML = `
+            <span class="vote-badge">${isConfirm ? '✅' : '❌'}</span>
+            <div class="vote-info">
+                <div class="vote-user">${voter}</div>
+                <div class="vote-detail">voted <strong>${vote}</strong> · reliability ${(reliability * 100).toFixed(0)}%</div>
+            </div>
+            <span class="vote-conf-change" style="color:${color}">${arrow} ${pctOld}% → ${pctNew}%</span>
+        `;
+        feed.appendChild(el);
+        // Animate in
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => el.classList.add('in'));
+        });
+        feed.scrollTop = feed.scrollHeight;
+    }
+
+    /* ─── run scenario ─── */
+    function runScenario(scenarioId) {
+        // UI: mark card as running, disable all buttons
+        document.querySelectorAll('.scenario-card').forEach(c => c.classList.remove('running', 'done'));
+        document.getElementById(`card-${scenarioId}`).classList.add('running');
+        document.querySelectorAll('.btn-run').forEach(b => {
+            b.disabled = true;
+            b.innerHTML = '<span style="opacity:0.6">Running...</span>';
+        });
+
+        // Reset live panel
+        const panel = document.getElementById('live-panel');
+        panel.classList.add('active');
+        document.getElementById('vote-feed').innerHTML = `
+            <div style="text-align:center; padding:1.5rem 0; color:#475569; font-size:0.82rem;">
+                ⏳ Waiting for first community member to vote...
+            </div>`;
+        setConfidence(0);
+        setStatus('new');
+        document.getElementById('live-step-counter').textContent = '0 / 0 votes';
+        document.getElementById('view-alert-link').style.display = 'none';
+        document.getElementById('narrator-text').textContent = 'Creating alert and starting crowd simulation...';
+
+        fetch(`/demo/run/${scenarioId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ reset: false }),
+        })
+        .then(res => {
+            if (!res.ok) return res.text().then(t => { throw new Error(`${res.status}: ${t.substring(0, 200)}`); });
+            return res.json();
+        })
+        .then(data => {
+            if (data.error) throw new Error(data.error);
+            document.getElementById('live-scenario-name').textContent = data.alert?.type?.toUpperCase() + ' ALERT — ' + data.message;
+            document.getElementById('narrator-text').textContent = '🤖 AI classified the report. Crowd voting starting...';
+            activeAlertId = data.alert?.id;
+            // Initial confidence from AI
+            if (data.alert?.confidence != null) setConfidence(data.alert.confidence * 100);
+            if (data.alert?.status) setStatus(data.alert.status);
+        })
+        .catch(err => {
+            document.getElementById('narrator-text').textContent = '⚠️ Error: ' + err.message;
+            // Re-enable buttons
+            document.querySelectorAll('.btn-run').forEach(b => {
+                b.disabled = false;
+                b.innerHTML = '<i data-lucide="play" style="width:15px;height:15px;"></i> Run This Scenario';
+            });
+            lucide.createIcons();
+        });
+    }
+
+    /* ─── Socket.IO events ─── */
+    socket.on('scenario_start', (data) => {
+        document.getElementById('live-scenario-name').textContent = data.scenario_name + ' — LIVE';
+        document.getElementById('live-step-counter').textContent = `0 / ${data.total_steps} votes`;
+        if (data.alert?.confidence != null) setConfidence(data.alert.confidence * 100);
+        if (data.alert?.status) setStatus(data.alert.status);
+    });
+
+    socket.on('scenario_step', (data) => {
+        document.getElementById('live-step-counter').textContent = `${data.step} / ${data.total_steps} votes`;
+        setConfidence(data.new_confidence * 100);
+        setStatus(data.new_status);
+        addVoteItem(data.voter, data.vote, data.reliability, data.old_confidence, data.new_confidence);
+
+        const statusMsg = data.status_changed
+            ? `⚡ Status changed: ${data.old_status.toUpperCase()} → ${data.new_status.toUpperCase()}`
+            : `Confidence updated: ${(data.old_confidence*100).toFixed(0)}% → ${(data.new_confidence*100).toFixed(0)}%`;
+        document.getElementById('narrator-text').textContent = statusMsg;
+    });
+
+    socket.on('scenario_complete', (data) => {
+        document.getElementById('live-scenario-name').textContent = '✅ Scenario Complete!';
+        document.getElementById('narrator-text').textContent = '🎉 All votes cast. Alert lifecycle demo finished!';
+
+        const link = document.getElementById('view-alert-link');
+        link.href = '/alert/' + data.alert_id;
+        link.style.display = 'flex';
+
+        // Re-enable cards
+        document.querySelectorAll('.scenario-card').forEach(c => c.classList.remove('running'));
+        document.getElementById(`card-${data.scenario_id || ''}`)?.classList.add('done');
+        document.querySelectorAll('.btn-run').forEach(b => {
+            b.disabled = false;
+            b.innerHTML = '<i data-lucide="play" style="width:15px;height:15px;"></i> Run This Scenario';
+        });
+        lucide.createIcons();
+    });
+
+    socket.on('scenario_error', (data) => {
+        document.getElementById('narrator-text').textContent = '⚠️ ' + data.error;
+        document.querySelectorAll('.btn-run').forEach(b => {
+            b.disabled = false;
+            b.innerHTML = '<i data-lucide="play" style="width:15px;height:15px;"></i> Run This Scenario';
+        });
+        lucide.createIcons();
+    });
+
+    /* ─── Reset ─── */
+    function resetSystem() {
+        if (!confirm('Reset ALL alerts, votes, and audit logs? Cannot be undone.')) return;
+        fetch('/demo/reset', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken },
+        })
+        .then(r => r.json())
+        .then(d => {
+            document.getElementById('live-panel').classList.remove('active');
+            alert('✅ System reset complete!');
+            location.reload();
+        })
+        .catch(e => alert('Reset failed: ' + e.message));
+    }
+</script>
+{% endblock %}

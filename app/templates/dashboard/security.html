@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+{% block title %}Security Map — CrisisSignal AI{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+    /* Dark map tiles override */
+    .leaflet-container { background: var(--bg-secondary) !important; }
+    .leaflet-popup-content-wrapper {
+        background: var(--bg-elevated) !important;
+        color: var(--text-primary) !important;
+        border: 1px solid var(--border-subtle) !important;
+        border-radius: var(--radius-md) !important;
+        box-shadow: var(--shadow-lg) !important;
+    }
+    .leaflet-popup-tip { background: var(--bg-elevated) !important; }
+    .leaflet-popup-close-button { color: var(--text-muted) !important; }
+    .popup-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+    .popup-location { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+    .popup-meta { font-size: 11px; color: var(--text-secondary); }
+    .popup-link { display: inline-block; margin-top: 8px; color: var(--accent); font-size: 12px; font-weight: 500; }
+
+    /* Map pulse animation for markers */
+    @keyframes mapPulse {
+        0%   { transform: translate(-50%, -50%) scale(1);   opacity: 0.4; }
+        100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="background: linear-gradient(135deg, rgba(78, 205, 196, 0.08), rgba(0,0,0,0.3)); padding: 3.5rem; border-radius: var(--radius-xl); border: 1px solid var(--border-glass); position: relative; overflow: hidden; margin-bottom: 3rem; backdrop-filter: blur(20px); box-shadow: var(--shadow-xl);">
+    <!-- Glowing Teal Orb Background -->
+    <div style="position: absolute; top: -20%; right: -5%; width: 400px; height: 400px; background: radial-gradient(circle, var(--color-info) 0%, transparent 70%); opacity: 0.15; filter: blur(50px); border-radius: 50%; pointer-events: none;"></div>
+    
+    <div class="page-title-group" style="position: relative; z-index: 1;">
+        <div style="display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.03); padding: 6px 14px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 1.5rem;">
+            <div style="width: 8px; height: 8px; background: var(--color-info); border-radius: 50%; box-shadow: 0 0 12px var(--color-info);"></div>
+            <span style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-secondary);">Live Tracking Active</span>
+        </div>
+        <h1 class="page-title" style="font-size: 3rem; font-weight: 800; letter-spacing: -0.04em; margin-bottom: 0.5rem; text-shadow: 0 4px 24px rgba(0,0,0,0.5);">
+            Security <span style="background: linear-gradient(135deg, #4ecdc4, #556270); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 8px rgba(78, 205, 196, 0.3));">Grid Map</span>
+        </h1>
+        <p class="page-subtitle" style="font-size: 1.15rem; color: var(--text-secondary); max-width: 600px; line-height: 1.6;">Real-time geographical crisis situation awareness. Monitor verified events dynamically.</p>
+    </div>
+</div>
+
+<div class="security-layout" style="gap: 2rem; align-items: start;">
+    <!-- Map -->
+    <div class="map-container" style="background: var(--bg-glass-premium); border: 1px solid var(--border-glass); border-radius: var(--radius-xl); backdrop-filter: blur(24px) saturate(150%); padding: 1rem; box-shadow: var(--shadow-xl); position: relative; height: 700px; display: flex; flex-direction: column;">
+        <div id="crisis-map" style="flex: 1; width: 100%; border-radius: var(--radius-md); background: #111;"></div>
+        <div class="map-legend">
+            <h4>Alert Status</h4>
+            <div class="legend-item">
+                <div class="legend-dot" style="background: var(--color-critical);"></div>
+                <span>Critical</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot" style="background: var(--color-verified);"></div>
+                <span>Verified</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot" style="background: var(--color-verifying);"></div>
+                <span>Verifying</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot" style="background: var(--color-awaiting);"></div>
+                <span>Awaiting Review</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Sidebar -->
+    <div class="map-sidebar" style="background: var(--bg-glass-premium); border: 1px solid var(--border-glass); border-radius: var(--radius-xl); backdrop-filter: blur(24px) saturate(150%); padding: 1.5rem; box-shadow: var(--shadow-xl);">
+        <h3 class="section-title">
+            <i data-lucide="alert-triangle"></i>
+            Active Alerts ({{ all_active | length }})
+        </h3>
+        {% for alert in all_active %}
+        <div class="map-alert-card status-{{ alert.status or 'unknown' }}" onclick="window.location='/alert/{{ alert.id }}'" data-alert-id="{{ alert.id }}" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); transition: all var(--duration-base); margin-bottom: 1rem;">
+            <div class="alert-card-header">
+                <span class="status-badge badge-{{ alert.status or 'unknown' }}">{{ (alert.status or 'unknown') | replace('_', ' ') | upper }}</span>
+                <span class="alert-type">{{ (alert.type or 'unknown') | upper }}</span>
+            </div>
+            <p class="alert-message" style="margin: 8px 0;">{{ (alert.message or '')[:80] }}...</p>
+            <div class="alert-meta">
+                <span class="meta-item">
+                    <i data-lucide="map-pin"></i> {{ alert.location or 'Unknown' }}
+                </span>
+                <span class="meta-item">
+                    <i data-lucide="bar-chart"></i> {{ "%.0f" | format((alert.confidence or 0) * 100) }}%
+                </span>
+            </div>
+        </div>
+        {% endfor %}
+
+        {% if not all_active %}
+        <div class="empty-state" style="padding: 32px 16px;">
+            <i data-lucide="shield-check"></i>
+            <h3>All Clear</h3>
+            <p>No active alerts on the map.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Alerts JSON Data (inside content block) -->
+<script type="application/json" id="alerts-data">
+    [
+        {% for alert in all_active %}
+        {
+            "id": "{{ alert.id }}",
+            "status": "{{ alert.status or 'new' }}",
+            "location": "{{ alert.location or 'Unknown' }}",
+            "type": "{{ alert.type or 'general' }}",
+            "confidence": {{ alert.confidence or 0 }},
+            "severity": {{ alert.severity or 0 }},
+            "confirmations_count": {{ alert.confirmations_count or 0 }},
+            "rejections_count": {{ alert.rejections_count or 0 }}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ]
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{{ url_for('static', filename='js/websocket.js') }}"></script>
+<script>
+    // ── Initialize Map with Dark Tiles ────────────────────
+    // Default to India
+    const map = L.map('crisis-map').setView([20.5937, 78.9629], 5);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; CartoDB',
+        maxZoom: 19,
+    }).addTo(map);
+
+    // ── Ask for User GPS Location ─────────────────────────
+    if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                // Fly to user location with a smooth animation
+                map.flyTo([lat, lng], 14, {
+                    animate: true,
+                    duration: 2.5
+                });
+                
+                // Add a marker for the user's location
+                const userIcon = L.divIcon({
+                    className: '',
+                    html: '<div style="position: relative; width: 20px; height: 20px;">'
+                        + '<div style="position: absolute; top: 50%; left: 50%; width: 14px; height: 14px; background: #007aff; border: 2px solid white; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 10px #007aff;"></div>'
+                        + '<div style="position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; background: #007aff; border-radius: 50%; transform: translate(-50%, -50%); opacity: 0.2; animation: mapPulse 2s ease-out infinite;"></div>'
+                        + '</div>',
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10],
+                });
+                L.marker([lat, lng], { icon: userIcon }).addTo(map).bindPopup('<div class="popup-title">Your Current Location</div>').openPopup();
+            },
+            (error) => {
+                console.warn("Geolocation denied or unavailable.", error);
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+    }
+
+    // ── Status Colors ─────────────────────────────────────
+    const statusColors = {
+        critical: '#ff2d55',
+        verified: '#ff9500',
+        verifying: '#ffcc02',
+        awaiting_review: '#5ac8fa',
+        new: '#34c759',
+    };
+
+    // ── Campus Locations (simulated coordinates) ──────────
+    const locationCoords = {
+        'Block A — Ground Floor':  [12.9715, 77.590],
+        'Block A — Floor 1':      [12.9715, 77.590],
+        'Block A — Floor 2':      [12.9715, 77.590],
+        'Block A — Floor 3':      [12.9715, 77.590],
+        'Block B — Ground Floor':  [12.9710, 77.591],
+        'Block B — Floor 1':      [12.9710, 77.591],
+        'Block B — Floor 2':      [12.9710, 77.591],
+        'Block C — Hostel':        [12.9720, 77.592],
+        'Block C, Floor 3 — Hostel Staircase': [12.9720, 77.592],
+        'Main Library — Ground Floor': [12.9705, 77.589],
+        'Main Library — Upper Floor':  [12.9705, 77.589],
+        'Main Gate — Entrance':    [12.9700, 77.588],
+        'Parking Area':            [12.9698, 77.591],
+        'Canteen':                 [12.9712, 77.588],
+        'Auditorium':              [12.9718, 77.588],
+        'Lab Building — Ground Floor': [12.9708, 77.592],
+        'Lab Building — Floor 1':  [12.9708, 77.592],
+        'Sports Ground':           [12.9725, 77.590],
+        'Campus Ground — Open Area': [12.9713, 77.590],
+    };
+
+    function getCoords(location) {
+        if (locationCoords[location]) return locationCoords[location];
+        // Slight random offset if unknown
+        return [12.971 + (Math.random() - 0.5) * 0.003, 77.590 + (Math.random() - 0.5) * 0.003];
+    }
+
+    // ── Load Alerts Data Cleanly ──────────────────────────
+    const alertsDataStr = document.getElementById('alerts-data').textContent;
+    let alertsData = [];
+    try {
+        alertsData = JSON.parse(alertsDataStr);
+    } catch (e) {
+        console.error("Error parsing alerts data", e);
+    }
+
+    // ── Add Alert Markers ─────────────────────────────────
+    alertsData.forEach(function(alert) {
+        const status = alert.status || "new";
+        const color = statusColors[status] || '#636380';
+        const locationName = alert.location || "Unknown";
+        const alertType = (alert.type || "general").toUpperCase();
+        const coords = getCoords(locationName);
+        
+        // Formatting numbers securely
+        const confidenceStr = Math.round((alert.confidence || 0) * 100) + "%";
+
+        // Pulsing circle
+        const pulseIcon = L.divIcon({
+            className: '',
+            html: '<div style="position: relative; width: 24px; height: 24px;">'
+                + '<div style="position: absolute; top: 50%; left: 50%; width: 12px; height: 12px; background: ' + color + '; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 10px ' + color + ';"></div>'
+                + '<div style="position: absolute; top: 50%; left: 50%; width: 24px; height: 24px; background: ' + color + '; border-radius: 50%; transform: translate(-50%, -50%); opacity: 0.3; animation: mapPulse 2s ease-out infinite;"></div>'
+                + '</div>',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+        });
+
+        L.marker(coords, { icon: pulseIcon }).addTo(map)
+            .bindPopup(
+                '<div class="popup-title">' + alertType + ' \u2014 ' + status.replace('_', ' ').toUpperCase() + '</div>'
+                + '<div class="popup-location">\ud83d\udccd ' + locationName + '</div>'
+                + '<div class="popup-meta">'
+                + 'Severity: ' + (alert.severity || 0) + '/10 | Confidence: ' + confidenceStr + '<br>'
+                + '\u2705 ' + (alert.confirmations_count || 0) + ' / \u274c ' + (alert.rejections_count || 0)
+                + '</div>'
+                + '<a class="popup-link" href="/alert/' + alert.id + '">View Details \u2192</a>'
+            );
+    });
+
+    // Invalidate map size after render (fixes display issues)
+    setTimeout(function() { map.invalidateSize(); }, 200);
+</script>
+{% endblock %}

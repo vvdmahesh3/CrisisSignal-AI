@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+{% block title %}Analytics — CrisisSignal AI{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-title-group">
+        <h1 class="page-title">Institutional Intelligence</h1>
+        <p class="page-subtitle">Analytics, trends, and response metrics</p>
+    </div>
+</div>
+
+<!-- Overview Stats -->
+<div class="stats-grid">
+    <div class="stat-card animate-fade-in-up stagger-1">
+        <div class="stat-icon stat-icon-purple">
+            <i data-lucide="database"></i>
+        </div>
+        <div class="stat-info">
+            <span class="stat-value">{{ analytics.overview.total_alerts if analytics and analytics.overview else 0 }}</span>
+            <span class="stat-label">Total Alerts</span>
+        </div>
+    </div>
+    <div class="stat-card animate-fade-in-up stagger-2">
+        <div class="stat-icon stat-icon-green">
+            <i data-lucide="check-circle"></i>
+        </div>
+        <div class="stat-info">
+            <span class="stat-value">{{ analytics.response_metrics.verification_rate if analytics and analytics.response_metrics else 0 }}%</span>
+            <span class="stat-label">Verification Rate</span>
+        </div>
+    </div>
+    <div class="stat-card animate-fade-in-up stagger-3">
+        <div class="stat-icon stat-icon-blue">
+            <i data-lucide="timer"></i>
+        </div>
+        <div class="stat-info">
+            <span class="stat-value">{{ analytics.response_metrics.avg_resolution_minutes if analytics and analytics.response_metrics else 0 }}m</span>
+            <span class="stat-label">Avg Resolution</span>
+        </div>
+    </div>
+    <div class="stat-card animate-fade-in-up stagger-4">
+        <div class="stat-icon stat-icon-orange">
+            <i data-lucide="heart-pulse"></i>
+        </div>
+        <div class="stat-info">
+            <span class="stat-value">{{ analytics.system_health.health_score if analytics and analytics.system_health else 0 }}%</span>
+            <span class="stat-label">System Health</span>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Grid -->
+<div class="analytics-grid">
+    <!-- Alert Type Distribution -->
+    <div class="chart-card animate-fade-in-up stagger-2">
+        <div class="chart-card-header">
+            <span class="chart-card-title">
+                <i data-lucide="pie-chart"></i> Alerts by Type
+            </span>
+        </div>
+        <div class="chart-container">
+            <canvas id="chart-types"></canvas>
+        </div>
+    </div>
+
+    <!-- 7-Day Trend -->
+    <div class="chart-card animate-fade-in-up stagger-3">
+        <div class="chart-card-header">
+            <span class="chart-card-title">
+                <i data-lucide="trending-up"></i> 7-Day Trend
+            </span>
+        </div>
+        <div class="chart-container">
+            <canvas id="chart-trend"></canvas>
+        </div>
+    </div>
+
+    <!-- Hourly Distribution -->
+    <div class="chart-card chart-card-full animate-fade-in-up stagger-4">
+        <div class="chart-card-header">
+            <span class="chart-card-title">
+                <i data-lucide="clock"></i> 24-Hour Distribution
+            </span>
+        </div>
+        <div class="chart-container">
+            <canvas id="chart-hourly"></canvas>
+        </div>
+    </div>
+
+    <!-- Reliability Leaderboard -->
+    <div class="chart-card animate-fade-in-up stagger-5">
+        <div class="chart-card-header">
+            <span class="chart-card-title">
+                <i data-lucide="trophy"></i> Reliability Leaderboard
+            </span>
+        </div>
+        {% if analytics and analytics.reliability_leaderboard %}
+        <div class="leaderboard">
+            {% for user in analytics.reliability_leaderboard %}
+            <div class="leaderboard-item">
+                <span class="leaderboard-rank rank-{{ loop.index }}">{{ loop.index }}</span>
+                <div class="leaderboard-info">
+                    <span class="leaderboard-name">{{ user.name or 'Anonymous' }}</span>
+                    <span class="leaderboard-stats">{{ user.total_reports or 0 }} reports · {{ user.accuracy or 0 }}% accuracy</span>
+                </div>
+                <span class="leaderboard-score">{{ "%.0f" | format((user.reliability_score or 0) * 100) }}%</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding: 24px;">
+            <p class="text-sm">No user data yet</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- System Health -->
+    <div class="chart-card animate-fade-in-up stagger-6">
+        <div class="chart-card-header">
+            <span class="chart-card-title">
+                <i data-lucide="shield"></i> System Health
+            </span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+            {% set health = analytics.system_health if analytics else none %}
+            <div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                    <span class="text-xs text-muted">AVG CONFIDENCE</span>
+                    <span class="text-mono text-sm">{{ "%.0f" | format((health.avg_confidence if health else 0) * 100) }}%</span>
+                </div>
+                <div class="score-bar-large">
+                    <div class="confidence-fill animate-progress" {{ ('style="width: ' ~ (((health.avg_confidence if health else 0) * 100) | int) ~ '%;"') | safe }}></div>
+                </div>
+            </div>
+            <div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                    <span class="text-xs text-muted">CROWD PARTICIPATION</span>
+                    <span class="text-mono text-sm">{{ health.crowd_participation_rate if health else 0 }}%</span>
+                </div>
+                <div class="score-bar-large">
+                    <div class="evidence-fill animate-progress" {{ ('style="width: ' ~ ((health.crowd_participation_rate if health else 0) | int) ~ '%;"') | safe }}></div>
+                </div>
+            </div>
+            <div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                    <span class="text-xs text-muted">FALSE ALARM RATE</span>
+                    <span class="text-mono text-sm">{{ health.false_alarm_rate if health else 0 }}%</span>
+                </div>
+                <div class="score-bar-large">
+                    <div class="severity-fill severity-{{ 'low' if (health.false_alarm_rate or 0) < 20 else ('medium' if (health.false_alarm_rate or 0) < 50 else 'high') }} animate-progress" {{ ('style="width: ' ~ ((health.false_alarm_rate if health else 0) | int) ~ '%;"') | safe }}></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+    const chartColors = {
+        fire: '#ff6b35', medical: '#ff2d55', violence: '#bf5af2',
+        theft: '#ff9500', infra: '#5ac8fa', general: '#636380',
+    };
+
+    const chartFont = { family: "'Inter', sans-serif", size: 12, color: '#8888a8' };
+
+    Chart.defaults.color = '#8888a8';
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.plugins.legend.labels.usePointStyle = true;
+
+    // ── Type Distribution (Doughnut) ────────────────────
+    const typesData = JSON.parse('{{ (analytics.alerts_by_type if analytics else {}) | tojson | safe }}');
+    new Chart(document.getElementById('chart-types'), {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(typesData).map(k => k.toUpperCase()),
+            datasets: [{
+                data: Object.values(typesData),
+                backgroundColor: Object.keys(typesData).map(k => chartColors[k] || '#636380'),
+                borderWidth: 0,
+                hoverOffset: 8,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '65%',
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 16, pointStyle: 'circle' } },
+            },
+        }
+    });
+
+    // ── 7-Day Trend (Line) ──────────────────────────────
+    const trendData = JSON.parse('{{ (analytics.recent_trend if analytics else []) | tojson | safe }}');
+    new Chart(document.getElementById('chart-trend'), {
+        type: 'line',
+        data: {
+            labels: trendData.map(d => d.date),
+            datasets: [{
+                label: 'Alerts',
+                data: trendData.map(d => d.count),
+                borderColor: '#8b7aff',
+                backgroundColor: 'rgba(139, 122, 255, 0.1)',
+                fill: true,
+                tension: 0.4,
+                pointRadius: 4,
+                pointBackgroundColor: '#8b7aff',
+                pointBorderColor: '#08081a',
+                pointBorderWidth: 2,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { grid: { color: 'rgba(255,255,255,0.04)' } },
+                y: { grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true },
+            },
+            plugins: { legend: { display: false } },
+        }
+    });
+
+    // ── 24-Hour Distribution (Bar) ──────────────────────
+    const hourlyData = JSON.parse('{{ (analytics.hourly_distribution if analytics else {}) | tojson | safe }}');
+    new Chart(document.getElementById('chart-hourly'), {
+        type: 'bar',
+        data: {
+            labels: Object.keys(hourlyData).map(h => h.toString().padStart(2, '0') + ':00'),
+            datasets: [{
+                label: 'Alerts',
+                data: Object.values(hourlyData),
+                backgroundColor: 'rgba(139, 122, 255, 0.4)',
+                borderColor: '#8b7aff',
+                borderWidth: 1,
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { grid: { display: false } },
+                y: { grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true },
+            },
+            plugins: { legend: { display: false } },
+        }
+    });
+</script>
+{% endblock %}
