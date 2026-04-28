@@ -276,10 +276,28 @@ def generate_explanation(alert_type, keywords_found, severity, urgency_level, ur
 
 def process_alert(text, location="Unknown"):
     """
-    Full AI pipeline — Phase 2 upgraded version.
-    Runs ML + keyword classification, negation detection, Hindi support.
+    Full AI pipeline — Phase 5: Gemini-powered with keyword fallback.
+
+    Priority:
+      1. Google Gemini 1.5 Flash  → best accuracy, human-level understanding
+      2. TF-IDF + LinearSVC (ML)  → fast, works offline
+      3. Keyword + rule engine    → always available, never fails
+
+    Returns a dict with: type, severity, confidence, explanation, keywords_found,
+    urgency_level, suspicion_flags, evidence_score, evidence_strength, ml_used,
+    gemini_used, location.
     """
-    # Stage 1: Classification (ML + keywords + Hindi + negation)
+    # ── Stage 0: Try Google Gemini AI first ───────────────────
+    try:
+        from .services.gemini_service import classify_with_gemini
+        gemini_result = classify_with_gemini(text, location)
+        if gemini_result:
+            return gemini_result
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"[AI] Gemini import/call failed: {e}")
+
+    # ── Stage 1: Keyword + ML fallback ────────────────────────
     alert_type, keyword_count, keywords_found, ml_used, ml_confidence = classify_text(text)
 
     # Stage 2: Urgency
@@ -324,7 +342,9 @@ def process_alert(text, location="Unknown"):
         "explanation": explanation,
         "location": location,
         "ml_used": ml_used,
+        "gemini_used": False,   # Gemini was not used (fell back to keyword engine)
     }
+
 
 
 def update_confidence_with_crowd(initial_confidence, weighted_confirms, weighted_rejects, reporter_reliability):

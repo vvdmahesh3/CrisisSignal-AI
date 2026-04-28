@@ -19,6 +19,9 @@ flask-wtf==1.2.1
 # ML Classifier (Phase 2 — added)
 scikit-learn==1.5.2
 
+# Google Gemini AI (Phase 5 — GDG requirement: use Google AI service)
+google-generativeai==0.8.3
+
 # Image Validation for Evidence Upload (Phase 3 — added)
 Pillow==11.2.1
 
